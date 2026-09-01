@@ -1,5 +1,5 @@
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyDpUTivLeqwqh-SdLJU6HoXtlH40MZjrYk",
   authDomain: "kcequence-online.firebaseapp.com",
   databaseURL: "https://kcequence-online-default-rtdb.firebaseio.com",
