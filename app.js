@@ -1,234 +1,1653 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
-import { getDatabase, ref, set, get, update, remove, onValue, runTransaction, onDisconnect, query, orderByChild, limitToFirst } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
+
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
+
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  remove,
+  onValue,
+  runTransaction,
+  onDisconnect
+} from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
+
 import { firebaseConfig } from './firebase-config.js';
 
-const $ = (id) => document.getElementById(id);
-const views = ['authView','lobbyView','roomView','gameView'];
+
+/* =========================================================
+   FIREBASE
+========================================================= */
+
+const $ = id => document.getElementById(id);
+
+const views = [
+  'authView',
+  'lobbyView',
+  'roomView',
+  'gameView'
+];
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+
+/* =========================================================
+   ESTADO LOCAL
+========================================================= */
+
 let me = null;
-let displayName = localStorage.getItem('kc_name') || '';
+
+let displayName =
+  localStorage.getItem('kc_name') || '';
+
 let currentRoomCode = null;
-let roomUnsub = null;
-let selectedCardIndex = null;
 let currentRoom = null;
 
-const SUITS = ['H','D','C','S'];
-const SUIT_SYMBOL = {H:'♥',D:'♦',C:'♣',S:'♠'};
-const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+let roomUnsub = null;
+let matchUnsub = null;
+
+let selectedCardIndex = null;
+let moveInFlight = false;
+
+
+/* =========================================================
+   CARTAS
+========================================================= */
+
+const SUITS = ['H', 'D', 'C', 'S'];
+
+const SUIT_SYMBOL = {
+  H: '♥',
+  D: '♦',
+  C: '♣',
+  S: '♠'
+};
+
+const RANKS = [
+  'A',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'J',
+  'Q',
+  'K'
+];
+
 const FREE = 'FREE';
 
-function showView(id){ views.forEach(v => $(v).classList.toggle('hidden', v !== id)); }
-function status(el,msg){ $(el).textContent = msg || ''; }
-function normalizeName(v){ return v.trim().replace(/\s+/g,' ').slice(0,18); }
-function randomCode(){ const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<6;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
-function cardId(suit,rank){ return `${rank}${suit}`; }
-function cardText(id){ if(id===FREE) return '★'; const suit=id.slice(-1); const rank=id.slice(0,-1); return `${rank}${SUIT_SYMBOL[suit]}`; }
-function isRedSuit(id){ return ['H','D'].includes(id.slice(-1)); }
-function isJack(id){ return id.startsWith('J'); }
-function jackType(id){ if(!isJack(id)) return null; return ['H','D'].includes(id.slice(-1)) ? 'wild' : 'remove'; }
-function shuffle(a){ const b=[...a]; for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
-function makeDeck(){ const d=[]; for(let x=0;x<2;x++) for(const s of SUITS) for(const r of RANKS) d.push(cardId(s,r)); return shuffle(d); }
-function makeBoard(){ const cards=[]; for(let x=0;x<2;x++) for(const s of SUITS) for(const r of RANKS) if(r!=='J') cards.push(cardId(s,r)); const mixed=shuffle(cards); const out=[]; let k=0; for(let i=0;i<100;i++){ if([0,9,90,99].includes(i)) out.push(FREE); else out.push(mixed[k++]); } return out; }
 
-function playerColor(room,uid){ const ids=Object.keys(room.players||{}); return ids.indexOf(uid)===0?'red':'blue'; }
-function playerName(room,uid){ return room.players?.[uid]?.name || 'Jugador'; }
+/* =========================================================
+   UTILIDADES
+========================================================= */
 
-async function ensureProfile(){
-  if(!me || !displayName) return;
-  await set(ref(db,`users/${me.uid}`),{name:displayName,lastSeen:Date.now()});
-}
-
-async function bootstrap(){
-  try{ await signInAnonymously(auth); }
-  catch(e){ status('lobbyStatus','No se pudo conectar con Firebase. Revisa firebase-config.js y activa Anonymous Authentication.'); console.error(e); }
-}
-
-onAuthStateChanged(auth, async user => {
-  me=user;
-  if(!user) return;
-  $('playerPill').textContent = displayName ? displayName : 'Invitado conectado';
-  if(displayName){ await ensureProfile(); showView('lobbyView'); }
-  else showView('authView');
-});
-
-$('nameForm').addEventListener('submit', async e=>{
-  e.preventDefault();
-  const n=normalizeName($('nameInput').value);
-  if(n.length<2) return;
-  displayName=n; localStorage.setItem('kc_name',n); $('playerPill').textContent=n; await ensureProfile(); showView('lobbyView');
-});
-
-$('roomCodeInput').addEventListener('input',e=> e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6));
-
-$('createRoomBtn').addEventListener('click', async()=>{
-  if(!me) return;
-  status('lobbyStatus','Creando sala…');
-  let code;
-  for(let i=0;i<8;i++){ const c=randomCode(); if(!(await get(ref(db,`rooms/${c}`))).exists()){ code=c; break; } }
-  if(!code) return status('lobbyStatus','No se pudo generar la sala. Intenta otra vez.');
-  const room={code,host:me.uid,status:'waiting',createdAt:Date.now(),players:{[me.uid]:{name:displayName,joinedAt:Date.now()}}};
-  await set(ref(db,`rooms/${code}`),room);
-  enterRoom(code);
-});
-
-$('joinRoomBtn').addEventListener('click', async()=>{
-  const code=$('roomCodeInput').value.trim().toUpperCase();
-  if(code.length!==6) return status('lobbyStatus','Escribe un código de 6 caracteres.');
-  const r=ref(db,`rooms/${code}`);
-  const snap=await get(r);
-  if(!snap.exists()) return status('lobbyStatus','No existe esa sala.');
-  const room=snap.val();
-  if(room.status!=='waiting') return status('lobbyStatus','Esa partida ya comenzó.');
-  if(Object.keys(room.players||{}).length>=2 && !room.players?.[me.uid]) return status('lobbyStatus','La sala está llena.');
-  await update(ref(db,`rooms/${code}/players/${me.uid}`),{name:displayName,joinedAt:Date.now()});
-  enterRoom(code);
-});
-
-async function enterRoom(code){
-  await cancelMatch();
-  currentRoomCode=code; selectedCardIndex=null; showView('roomView');
-  $('roomTitle').textContent=code;
-  const playerRef=ref(db,`rooms/${code}/players/${me.uid}`);
-  onDisconnect(playerRef).remove();
-  if(roomUnsub) roomUnsub();
-  roomUnsub=onValue(ref(db,`rooms/${code}`),snap=>{
-    if(!snap.exists()){ leaveToLobby('La sala fue cerrada.'); return; }
-    currentRoom=snap.val(); renderRoom(currentRoom);
-    if(currentRoom.status==='playing') renderGame(currentRoom);
-    if(currentRoom.status==='finished') showResult(currentRoom);
+function showView(id) {
+  views.forEach(view => {
+    $(view).classList.toggle(
+      'hidden',
+      view !== id
+    );
   });
 }
 
-function renderRoom(room){
-  const ids=Object.keys(room.players||{});
-  $('playersList').innerHTML='';
-  ids.forEach((uid,i)=>{
-    const div=document.createElement('div'); div.className='player-card'+(uid===me.uid?' me':'');
-    div.innerHTML=`<strong><span class="player-dot ${i===0?'dot-red':'dot-blue'}"></span>${escapeHtml(room.players[uid].name)}</strong><p>${uid===room.host?'Anfitrión':'Invitado'}${uid===me.uid?' · Tú':''}</p>`;
-    $('playersList').appendChild(div);
-  });
-  $('roomSubtitle').textContent = ids.length<2 ? 'Comparte este código con un amigo.' : 'Dos jugadores conectados.';
-  $('startBtn').classList.toggle('hidden', !(room.host===me.uid && ids.length===2 && room.status==='waiting'));
-  if(room.status==='waiting') showView('roomView');
-}
 
-$('startBtn').addEventListener('click', async()=>{
-  if(!currentRoomCode) return;
-  const snap=await get(ref(db,`rooms/${currentRoomCode}`)); if(!snap.exists()) return;
-  const room=snap.val(); const ids=Object.keys(room.players||{}); if(ids.length!==2||room.host!==me.uid) return;
-  const deck=makeDeck(); const hands={};
-  hands[ids[0]]=deck.splice(0,7); hands[ids[1]]=deck.splice(0,7);
-  await update(ref(db,`rooms/${currentRoomCode}`),{status:'playing',game:{board:makeBoard(),deck,hands,chips:{},turn:ids[0],winner:null,sequences:{[ids[0]]:0,[ids[1]]:0},moveCount:0,updatedAt:Date.now()}});
-});
+function status(elementId, message) {
+  const element = $(elementId);
 
-$('leaveBtn').addEventListener('click',()=>leaveRoom()); $('exitGameBtn').addEventListener('click',()=>leaveRoom());
-async function leaveRoom(){
-  if(!currentRoomCode) return leaveToLobby();
-  const code=currentRoomCode; const snap=await get(ref(db,`rooms/${code}`));
-  if(snap.exists()){
-    const room=snap.val();
-    if(room.host===me.uid) await remove(ref(db,`rooms/${code}`));
-    else await remove(ref(db,`rooms/${code}/players/${me.uid}`));
+  if (element) {
+    element.textContent = message || '';
   }
+}
+
+
+function normalizeName(value) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 18);
+}
+
+
+function randomCode() {
+  const chars =
+    'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  let code = '';
+
+  for (let i = 0; i < 6; i++) {
+    code += chars[
+      Math.floor(
+        Math.random() * chars.length
+      )
+    ];
+  }
+
+  return code;
+}
+
+
+function cardId(suit, rank) {
+  return `${rank}${suit}`;
+}
+
+
+function cardText(id) {
+  if (id === FREE) {
+    return '★';
+  }
+
+  const suit = id.slice(-1);
+  const rank = id.slice(0, -1);
+
+  return `${rank}${SUIT_SYMBOL[suit]}`;
+}
+
+
+function isRedSuit(id) {
+  if (!id || id === FREE) {
+    return false;
+  }
+
+  return ['H', 'D'].includes(
+    id.slice(-1)
+  );
+}
+
+
+function isJack(id) {
+  return !!id &&
+    id !== FREE &&
+    id.startsWith('J');
+}
+
+
+function jackType(id) {
+  if (!isJack(id)) {
+    return null;
+  }
+
+  /*
+   J♥ y J♦ = Jota libre.
+   J♣ y J♠ = quitar ficha rival.
+  */
+
+  return ['H', 'D'].includes(
+    id.slice(-1)
+  )
+    ? 'wild'
+    : 'remove';
+}
+
+
+function shuffle(array) {
+  const copy = [...array];
+
+  for (
+    let i = copy.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j =
+      Math.floor(
+        Math.random() * (i + 1)
+      );
+
+    [
+      copy[i],
+      copy[j]
+    ] = [
+      copy[j],
+      copy[i]
+    ];
+  }
+
+  return copy;
+}
+
+
+function makeDeck() {
+  const deck = [];
+
+  /*
+   Dos barajas completas.
+  */
+
+  for (let x = 0; x < 2; x++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push(
+          cardId(suit, rank)
+        );
+      }
+    }
+  }
+
+  return shuffle(deck);
+}
+
+
+function makeBoard() {
+  const cards = [];
+
+  /*
+   Dos copias de cada carta
+   que no sea Jota.
+  */
+
+  for (let x = 0; x < 2; x++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        if (rank !== 'J') {
+          cards.push(
+            cardId(suit, rank)
+          );
+        }
+      }
+    }
+  }
+
+  const mixed = shuffle(cards);
+
+  const board = [];
+
+  let cardIndex = 0;
+
+  for (let i = 0; i < 100; i++) {
+    if (
+      i === 0 ||
+      i === 9 ||
+      i === 90 ||
+      i === 99
+    ) {
+      board.push(FREE);
+    } else {
+      board.push(
+        mixed[cardIndex++]
+      );
+    }
+  }
+
+  return board;
+}
+
+
+/* =========================================================
+   JUGADORES / ORDEN
+========================================================= */
+
+function getPlayerIds(room) {
+  return Object.entries(
+    room.players || {}
+  )
+    .sort(([, a], [, b]) => {
+      return (
+        (a.joinedAt || 0) -
+        (b.joinedAt || 0)
+      );
+    })
+    .map(([uid]) => uid);
+}
+
+
+function getTurnOrder(room) {
+  if (
+    Array.isArray(
+      room.game?.turnOrder
+    ) &&
+    room.game.turnOrder.length
+  ) {
+    return room.game.turnOrder;
+  }
+
+  return getPlayerIds(room);
+}
+
+
+function getActivePlayerIds(room) {
+  const active =
+    new Set(
+      Object.keys(
+        room.players || {}
+      )
+    );
+
+  return getTurnOrder(room)
+    .filter(uid => active.has(uid));
+}
+
+
+function playerName(room, uid) {
+  return (
+    room.players?.[uid]?.name ||
+    room.game?.playerNames?.[uid] ||
+    'Jugador'
+  );
+}
+
+
+function playerColor(room, uid) {
+  const order =
+    getTurnOrder(room);
+
+  const colors = [
+    'red',
+    'blue',
+    'green',
+    'gold'
+  ];
+
+  const index =
+    order.indexOf(uid);
+
+  return colors[index] || 'blue';
+}
+
+
+function playerDot(room, uid) {
+  return `dot-${playerColor(room, uid)}`;
+}
+
+
+function getNextActivePlayer(
+  room,
+  currentUid
+) {
+  const order =
+    getTurnOrder(room);
+
+  const active =
+    new Set(
+      Object.keys(
+        room.players || {}
+      )
+    );
+
+  if (!order.length) {
+    return null;
+  }
+
+  const startIndex =
+    order.indexOf(currentUid);
+
+  for (
+    let step = 1;
+    step <= order.length;
+    step++
+  ) {
+    const index =
+      (
+        Math.max(
+          startIndex,
+          -1
+        ) + step
+      ) % order.length;
+
+    const candidate =
+      order[index];
+
+    if (active.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+
+function escapeHtml(str = '') {
+  return String(str).replace(
+    /[&<>'"]/g,
+    char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    })[char]
+  );
+}
+
+
+/* =========================================================
+   PERFIL
+========================================================= */
+
+async function ensureProfile() {
+  if (!me || !displayName) {
+    return;
+  }
+
+  await set(
+    ref(
+      db,
+      `users/${me.uid}`
+    ),
+    {
+      name: displayName,
+      lastSeen: Date.now()
+    }
+  );
+}
+
+
+/* =========================================================
+   INICIAR FIREBASE
+========================================================= */
+
+async function bootstrap() {
+  try {
+    await signInAnonymously(auth);
+  } catch (error) {
+    console.error(error);
+
+    $('playerPill').textContent =
+      'Error de conexión';
+
+    status(
+      'lobbyStatus',
+      'No se pudo conectar con Firebase. Revisa firebase-config.js y activa Anonymous Authentication.'
+    );
+  }
+}
+
+
+onAuthStateChanged(
+  auth,
+  async user => {
+    me = user;
+
+    if (!user) {
+      return;
+    }
+
+    $('playerPill').textContent =
+      displayName
+        ? displayName
+        : 'Invitado conectado';
+
+    startMatchListener();
+
+    if (displayName) {
+      await ensureProfile();
+
+      showView(
+        'lobbyView'
+      );
+    } else {
+      showView(
+        'authView'
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   NOMBRE
+========================================================= */
+
+$('nameForm').addEventListener(
+  'submit',
+  async event => {
+    event.preventDefault();
+
+    const name =
+      normalizeName(
+        $('nameInput').value
+      );
+
+    if (name.length < 2) {
+      return;
+    }
+
+    displayName = name;
+
+    localStorage.setItem(
+      'kc_name',
+      name
+    );
+
+    $('playerPill').textContent =
+      name;
+
+    await ensureProfile();
+
+    showView(
+      'lobbyView'
+    );
+  }
+);
+
+
+/* =========================================================
+   INPUT CÓDIGO
+========================================================= */
+
+$('roomCodeInput').addEventListener(
+  'input',
+  event => {
+    event.target.value =
+      event.target.value
+        .toUpperCase()
+        .replace(
+          /[^A-Z0-9]/g,
+          ''
+        )
+        .slice(0, 6);
+  }
+);
+
+
+/* =========================================================
+   CREAR SALA PRIVADA
+========================================================= */
+
+$('createRoomBtn').addEventListener(
+  'click',
+  async () => {
+    if (!me) {
+      return;
+    }
+
+    status(
+      'lobbyStatus',
+      'Creando sala…'
+    );
+
+    let code = null;
+
+    for (
+      let i = 0;
+      i < 10;
+      i++
+    ) {
+      const possibleCode =
+        randomCode();
+
+      const snap =
+        await get(
+          ref(
+            db,
+            `rooms/${possibleCode}`
+          )
+        );
+
+      if (!snap.exists()) {
+        code =
+          possibleCode;
+
+        break;
+      }
+    }
+
+    if (!code) {
+      status(
+        'lobbyStatus',
+        'No se pudo generar la sala. Intenta otra vez.'
+      );
+
+      return;
+    }
+
+    const room = {
+      code,
+
+      host:
+        me.uid,
+
+      status:
+        'waiting',
+
+      maxPlayers:
+        4,
+
+      createdAt:
+        Date.now(),
+
+      players: {
+        [me.uid]: {
+          name:
+            displayName,
+
+          joinedAt:
+            Date.now()
+        }
+      }
+    };
+
+    await set(
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+      room
+    );
+
+    enterRoom(code);
+  }
+);
+
+
+/* =========================================================
+   UNIRSE A SALA
+========================================================= */
+
+$('joinRoomBtn').addEventListener(
+  'click',
+  async () => {
+    if (!me) {
+      return;
+    }
+
+    const code =
+      $('roomCodeInput')
+        .value
+        .trim()
+        .toUpperCase();
+
+    if (code.length !== 6) {
+      status(
+        'lobbyStatus',
+        'Escribe un código de 6 caracteres.'
+      );
+
+      return;
+    }
+
+    status(
+      'lobbyStatus',
+      'Entrando a la sala…'
+    );
+
+    const roomRef =
+      ref(
+        db,
+        `rooms/${code}`
+      );
+
+    const before =
+      await get(roomRef);
+
+    if (!before.exists()) {
+      status(
+        'lobbyStatus',
+        'No existe esa sala.'
+      );
+
+      return;
+    }
+
+    if (
+      before.val().status !==
+      'waiting'
+    ) {
+      status(
+        'lobbyStatus',
+        'Esa partida ya comenzó.'
+      );
+
+      return;
+    }
+
+    const result =
+      await runTransaction(
+        roomRef,
+        room => {
+          if (
+            !room ||
+            room.status !==
+              'waiting'
+          ) {
+            return;
+          }
+
+          room.players =
+            room.players || {};
+
+          const count =
+            Object.keys(
+              room.players
+            ).length;
+
+          if (
+            count >= 4 &&
+            !room.players[me.uid]
+          ) {
+            return;
+          }
+
+          if (!room.players[me.uid]) {
+            room.players[me.uid] = {
+              name:
+                displayName,
+
+              joinedAt:
+                Date.now()
+            };
+          }
+
+          return room;
+        }
+      );
+
+    if (!result.committed) {
+      status(
+        'lobbyStatus',
+        'No se pudo entrar. La sala está llena o la partida ya comenzó.'
+      );
+
+      return;
+    }
+
+    enterRoom(code);
+  }
+);
+
+
+/* =========================================================
+   MATCHMAKING PERSONAL
+========================================================= */
+
+function startMatchListener() {
+  if (!me) {
+    return;
+  }
+
+  if (matchUnsub) {
+    matchUnsub();
+  }
+
+  const myMatchRef =
+    ref(
+      db,
+      `matchesByUser/${me.uid}`
+    );
+
+  matchUnsub =
+    onValue(
+      myMatchRef,
+      async snap => {
+        if (
+          !snap.exists() ||
+          currentRoomCode
+        ) {
+          return;
+        }
+
+        const match =
+          snap.val();
+
+        await remove(
+          myMatchRef
+        );
+
+        const roomSnap =
+          await get(
+            ref(
+              db,
+              `rooms/${match.roomCode}`
+            )
+          );
+
+        if (!roomSnap.exists()) {
+          return;
+        }
+
+        enterRoom(
+          match.roomCode
+        );
+      }
+    );
+}
+
+
+/* =========================================================
+   ENTRAR / ESCUCHAR SALA
+========================================================= */
+
+async function enterRoom(code) {
+  await cancelMatch();
+
+  currentRoomCode =
+    code;
+
+  currentRoom =
+    null;
+
+  selectedCardIndex =
+    null;
+
+  moveInFlight =
+    false;
+
+  showView(
+    'roomView'
+  );
+
+  $('roomTitle').textContent =
+    code;
+
+  const playerRef =
+    ref(
+      db,
+      `rooms/${code}/players/${me.uid}`
+    );
+
+  /*
+   Si pierde internet o cierra la pestaña,
+   Firebase elimina a ese jugador.
+  */
+
+  onDisconnect(
+    playerRef
+  ).remove();
+
+  if (roomUnsub) {
+    roomUnsub();
+  }
+
+  roomUnsub =
+    onValue(
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+      snap => {
+        if (!snap.exists()) {
+          leaveToLobby(
+            'La sala fue cerrada.'
+          );
+
+          return;
+        }
+
+        currentRoom =
+          snap.val();
+
+        renderRoom(
+          currentRoom
+        );
+
+        if (
+          currentRoom.status ===
+          'playing'
+        ) {
+          reconcileActiveGame(code);
+
+          renderGame(
+            currentRoom
+          );
+        }
+
+        if (
+          currentRoom.status ===
+          'finished'
+        ) {
+          renderGame(
+            currentRoom
+          );
+
+          showResult(
+            currentRoom
+          );
+        }
+      }
+    );
+}
+
+
+/* =========================================================
+   RECONCILIAR DESCONEXIONES DURANTE PARTIDA
+========================================================= */
+
+async function reconcileActiveGame(code) {
+  if (!me) {
+    return;
+  }
+
+  await runTransaction(
+    ref(
+      db,
+      `rooms/${code}`
+    ),
+    room => {
+      if (
+        !room ||
+        room.status !==
+          'playing' ||
+        !room.game ||
+        room.game.winner
+      ) {
+        return;
+      }
+
+      const active =
+        getActivePlayerIds(room);
+
+      /*
+       Nadie activo.
+      */
+
+      if (!active.length) {
+        return;
+      }
+
+      /*
+       Si solo queda un jugador,
+       ese jugador gana.
+      */
+
+      if (active.length === 1) {
+        room.game.winner =
+          active[0];
+
+        room.game.finishReason =
+          'disconnect';
+
+        room.game.updatedAt =
+          Date.now();
+
+        room.status =
+          'finished';
+
+        return room;
+      }
+
+      /*
+       Si quien tenía el turno ya no está,
+       avanzar al siguiente jugador activo.
+      */
+
+      if (
+        !active.includes(
+          room.game.turn
+        )
+      ) {
+        const next =
+          getNextActivePlayer(
+            room,
+            room.game.turn
+          );
+
+        if (next) {
+          room.game.turn =
+            next;
+
+          room.game.updatedAt =
+            Date.now();
+
+          return room;
+        }
+      }
+
+      /*
+       No había nada que corregir.
+      */
+
+      return;
+    }
+  );
+}
+
+
+/* =========================================================
+   RENDER SALA
+========================================================= */
+
+function renderRoom(room) {
+  const ids =
+    getPlayerIds(room);
+
+  $('playersList').innerHTML =
+    '';
+
+  ids.forEach(uid => {
+    const div =
+      document.createElement(
+        'div'
+      );
+
+    div.className =
+      'player-card' +
+      (
+        uid === me.uid
+          ? ' me'
+          : ''
+      );
+
+    div.innerHTML = `
+      <strong>
+        <span class="player-dot ${playerDot(room, uid)}"></span>
+        ${escapeHtml(
+          playerName(
+            room,
+            uid
+          )
+        )}
+      </strong>
+
+      <p>
+        ${
+          uid === room.host
+            ? 'Anfitrión'
+            : 'Jugador'
+        }
+
+        ${
+          uid === me.uid
+            ? ' · Tú'
+            : ''
+        }
+      </p>
+    `;
+
+    $('playersList')
+      .appendChild(div);
+  });
+
+  if (
+    room.status ===
+    'waiting'
+  ) {
+    $('roomSubtitle').textContent =
+      ids.length === 1
+        ? 'Esperando jugadores · 1/4'
+        : `${ids.length}/4 jugadores conectados.`;
+
+    $('startBtn')
+      .classList
+      .toggle(
+        'hidden',
+        !(
+          room.host ===
+            me.uid &&
+          ids.length >= 2 &&
+          ids.length <= 4
+        )
+      );
+
+    showView(
+      'roomView'
+    );
+  }
+}
+
+
+/* =========================================================
+   INICIAR PARTIDA
+========================================================= */
+
+$('startBtn').addEventListener(
+  'click',
+  async () => {
+    if (
+      !currentRoomCode ||
+      !me
+    ) {
+      return;
+    }
+
+    const button =
+      $('startBtn');
+
+    button.disabled =
+      true;
+
+    status(
+      'roomStatus',
+      'Preparando partida…'
+    );
+
+    const roomRef =
+      ref(
+        db,
+        `rooms/${currentRoomCode}`
+      );
+
+    const snap =
+      await get(roomRef);
+
+    if (!snap.exists()) {
+      button.disabled =
+        false;
+
+      status(
+        'roomStatus',
+        'La sala ya no existe.'
+      );
+
+      return;
+    }
+
+    const room =
+      snap.val();
+
+    const ids =
+      getPlayerIds(room);
+
+    if (
+      room.host !== me.uid ||
+      room.status !==
+        'waiting' ||
+      ids.length < 2 ||
+      ids.length > 4
+    ) {
+      button.disabled =
+        false;
+
+      status(
+        'roomStatus',
+        'Se necesitan entre 2 y 4 jugadores para iniciar.'
+      );
+
+      return;
+    }
+
+    const deck =
+      makeDeck();
+
+    const hands = {};
+
+    /*
+     2 jugadores = 7 cartas.
+     3 o 4 jugadores = 6 cartas.
+    */
+
+    const handSize =
+      ids.length === 2
+        ? 7
+        : 6;
+
+    ids.forEach(uid => {
+      hands[uid] =
+        deck.splice(
+          0,
+          handSize
+        );
+    });
+
+    const playerNames =
+      Object.fromEntries(
+        ids.map(uid => [
+          uid,
+          playerName(
+            room,
+            uid
+          )
+        ])
+      );
+
+    const game = {
+      board:
+        makeBoard(),
+
+      deck,
+
+      hands,
+
+      chips: {},
+
+      turnOrder:
+        ids,
+
+      playerNames,
+
+      turn:
+        ids[0],
+
+      winner:
+        null,
+
+      finishReason:
+        null,
+
+      sequences:
+        Object.fromEntries(
+          ids.map(
+            uid => [uid, 0]
+          )
+        ),
+
+      /*
+       Aquí se guardan las líneas
+       que YA fueron reconocidas.
+      */
+
+      completedSequences: {},
+
+      moveCount:
+        0,
+
+      updatedAt:
+        Date.now()
+    };
+
+    const result =
+      await runTransaction(
+        roomRef,
+        current => {
+          if (!current) {
+            return;
+          }
+
+          const currentIds =
+            getPlayerIds(
+              current
+            );
+
+          if (
+            current.host !==
+              me.uid ||
+            current.status !==
+              'waiting' ||
+            currentIds.length < 2 ||
+            currentIds.length > 4
+          ) {
+            return;
+          }
+
+          /*
+           Si entró/salió alguien entre
+           la lectura y la transacción,
+           cancelamos para evitar inconsistencia.
+          */
+
+          if (
+            currentIds.join('|') !==
+            ids.join('|')
+          ) {
+            return;
+          }
+
+          current.status =
+            'playing';
+
+          current.game =
+            game;
+
+          return current;
+        }
+      );
+
+    button.disabled =
+      false;
+
+    if (!result.committed) {
+      status(
+        'roomStatus',
+        'La sala cambió antes de iniciar. Revisa los jugadores e intenta otra vez.'
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   SALIR
+========================================================= */
+
+$('leaveBtn').addEventListener(
+  'click',
+  () => leaveRoom()
+);
+
+$('exitGameBtn').addEventListener(
+  'click',
+  () => leaveRoom()
+);
+
+
+async function leaveRoom() {
+  if (!currentRoomCode) {
+    leaveToLobby();
+
+    return;
+  }
+
+  const code =
+    currentRoomCode;
+
+  const roomRef =
+    ref(
+      db,
+      `rooms/${code}`
+    );
+
+  const snap =
+    await get(roomRef);
+
+  if (!snap.exists()) {
+    leaveToLobby();
+
+    return;
+  }
+
+  const room =
+    snap.val();
+
+
+  /* =======================================================
+     SALA TODAVÍA EN ESPERA
+  ======================================================= */
+
+  if (
+    room.status ===
+    'waiting'
+  ) {
+    await runTransaction(
+      roomRef,
+      current => {
+        if (
+          !current ||
+          current.status !==
+            'waiting'
+        ) {
+          return;
+        }
+
+        current.players =
+          current.players || {};
+
+        delete current.players[
+          me.uid
+        ];
+
+        const remaining =
+          getPlayerIds(
+            current
+          );
+
+        /*
+         Ya no queda nadie.
+         Eliminar sala completa.
+        */
+
+        if (!remaining.length) {
+          return null;
+        }
+
+        /*
+         Si salió el host,
+         pasar host al siguiente.
+        */
+
+        if (
+          current.host ===
+          me.uid
+        ) {
+          current.host =
+            remaining[0];
+        }
+
+        return current;
+      }
+    );
+
+    leaveToLobby();
+
+    return;
+  }
+
+
+  /* =======================================================
+     PARTIDA ACTIVA
+  ======================================================= */
+
+  if (
+    room.status ===
+      'playing' &&
+    room.game &&
+    !room.game.winner
+  ) {
+    await runTransaction(
+      roomRef,
+      current => {
+        if (
+          !current ||
+          current.status !==
+            'playing' ||
+          !current.game ||
+          current.game.winner
+        ) {
+          return;
+        }
+
+        const oldTurn =
+          current.game.turn;
+
+        current.players =
+          current.players || {};
+
+        delete current.players[
+          me.uid
+        ];
+
+        const active =
+          getActivePlayerIds(
+            current
+          );
+
+        /*
+         Si queda solo uno,
+         gana automáticamente.
+        */
+
+        if (
+          active.length === 1
+        ) {
+          current.game.winner =
+            active[0];
+
+          current.game.finishReason =
+            'forfeit';
+
+          current.game.updatedAt =
+            Date.now();
+
+          current.status =
+            'finished';
+
+          return current;
+        }
+
+        /*
+         Si todavía quedan 2 o más,
+         la partida continúa.
+        */
+
+        if (
+          active.length >= 2 &&
+          oldTurn === me.uid
+        ) {
+          const next =
+            getNextActivePlayer(
+              current,
+              me.uid
+            );
+
+          if (next) {
+            current.game.turn =
+              next;
+          }
+        }
+
+        current.game.updatedAt =
+          Date.now();
+
+        return current;
+      }
+    );
+
+    leaveToLobby(
+      'Saliste de la partida.'
+    );
+
+    return;
+  }
+
+
+  /* =======================================================
+     PARTIDA TERMINADA
+  ======================================================= */
+
+  await runTransaction(
+    roomRef,
+    current => {
+      if (!current) {
+        return;
+      }
+
+      current.players =
+        current.players || {};
+
+      delete current.players[
+        me.uid
+      ];
+
+      if (
+        !Object.keys(
+          current.players
+        ).length
+      ) {
+        return null;
+      }
+
+      return current;
+    }
+  );
+
   leaveToLobby();
 }
-function leaveToLobby(msg=''){ if(roomUnsub){roomUnsub();roomUnsub=null;} currentRoomCode=null; currentRoom=null; selectedCardIndex=null; showView('lobbyView'); status('lobbyStatus',msg); }
 
-function renderGame(room){
 
-  showView('gameView');
+function leaveToLobby(
+  message = ''
+) {
+  if (roomUnsub) {
+    roomUnsub();
 
-  currentRoom = room;
+    roomUnsub =
+      null;
+  }
 
-  const game = room.game;
+  currentRoomCode =
+    null;
 
-  if (!game) return;
+  currentRoom =
+    null;
 
+  selectedCardIndex =
+    null;
+
+  moveInFlight =
+    false;
+
+  $('modal')
+    .classList
+    .add('hidden');
+
+  showView(
+    'lobbyView'
+  );
+
+  status(
+    'lobbyStatus',
+    message
+  );
+}
+
+
+/* =========================================================
+   RENDER PARTIDA
+========================================================= */
+
+function renderGame(room) {
+  showView(
+    'gameView'
+  );
+
+  currentRoom =
+    room;
+
+  const game =
+    room.game;
+
+  if (!game) {
+    return;
+  }
 
   const myTurn =
-    game.turn === me.uid;
-
-
-  /* Si cambió el turno, borrar selección anterior */
+    game.turn === me.uid &&
+    !game.winner;
 
   if (!myTurn) {
-
-    selectedCardIndex = null;
-
+    selectedCardIndex =
+      null;
   }
-
 
   if (game.winner) {
-
     $('turnLabel').textContent =
       'Partida terminada';
-
-  }
-
-  else if (myTurn) {
-
+  } else if (myTurn) {
     $('turnLabel').textContent =
       '🟢 TU TURNO';
-
-  }
-
-  else {
-
+  } else {
     $('turnLabel').textContent =
       `⏳ Turno de ${playerName(
         room,
         game.turn
       )}`;
-
   }
 
-
-  const ids =
-    Object.keys(
-      room.players || {}
-    );
-
+  const order =
+    getTurnOrder(room);
 
   $('scoreLabel').textContent =
-    ids
-      .map(
-        uid =>
-          `${playerName(room, uid)}: ${
-            game.sequences?.[uid] || 0
-          }/2`
-      )
-      .join(' · ');
+    order
+      .map(uid => {
+        const score =
+          game.sequences?.[uid] ||
+          0;
 
+        const active =
+          !!room.players?.[uid];
+
+        return `${playerName(
+          room,
+          uid
+        )}: ${score}/2${
+          active ? '' : ' · salió'
+        }`;
+      })
+      .join(' · ');
 
   renderBoard(room);
 
   renderHand(room);
 
-
   if (game.winner) {
-
     status(
       'gameStatus',
       'La partida terminó.'
     );
-
-  }
-
-  else if (myTurn) {
-
+  } else if (myTurn) {
     status(
       'gameStatus',
-      'Tu turno: selecciona una carta y después una casilla.'
+      'Tu turno: selecciona una carta y después una casilla resaltada.'
     );
-
-  }
-
-  else {
-
+  } else {
     status(
       'gameStatus',
       `Espera a que ${playerName(
@@ -236,123 +1655,733 @@ function renderGame(room){
         game.turn
       )} realice su movimiento.`
     );
-
   }
 }
 
-function renderBoard(room){
-  const boardEl=$('board'); boardEl.innerHTML=''; const g=room.game; const myHand=g.hands?.[me.uid]||[]; const sel=myHand[selectedCardIndex];
-  g.board.forEach((card,index)=>{
-    const btn=document.createElement('button'); btn.type='button'; btn.className='cell'+(card===FREE?' free':''); btn.dataset.index=index; btn.innerHTML=`<span class="${isRedSuit(card)?'suit-red':''}">${cardText(card)}</span>`;
-    const chipUid=g.chips?.[index]; if(chipUid){ const chip=document.createElement('span'); chip.className=`chip ${playerColor(room,chipUid)}`; btn.appendChild(chip); }
-    if(sel && g.turn===me.uid && isLegalTarget(room,sel,index)) btn.classList.add('legal');
-    btn.addEventListener('click',()=>playAt(index)); boardEl.appendChild(btn);
-  });
-}
 
-function renderHand(room){
-  const hand = $('hand');
-  hand.innerHTML = '';
+/* =========================================================
+   TABLERO
+========================================================= */
 
-  const game = room.game;
-  const cards = game.hands?.[me.uid] || [];
+function renderBoard(room) {
+  const boardElement =
+    $('board');
 
-  const myTurn = game.turn === me.uid && !game.winner;
+  boardElement.innerHTML =
+    '';
 
-  cards.forEach((id, i) => {
+  const game =
+    room.game;
 
-    const b = document.createElement('button');
+  const myHand =
+    game.hands?.[
+      me.uid
+    ] || [];
 
-    b.type = 'button';
+  const selectedCard =
+    selectedCardIndex ===
+      null
+      ? null
+      : myHand[
+          selectedCardIndex
+        ];
 
-    b.className =
-      'card' +
-      (selectedCardIndex === i ? ' selected' : '') +
-      (!myTurn ? ' not-my-turn' : '');
-
-    const jt = jackType(id);
-
-    b.innerHTML = `
-      <span>${cardText(id)}</span>
-
-      <span class="big ${isRedSuit(id) ? 'suit-red' : ''}">
-        ${SUIT_SYMBOL[id.slice(-1)] || ''}
-      </span>
-
-      <span class="special">
-        ${
-          jt === 'wild'
-            ? 'Jota libre'
-            : jt === 'remove'
-            ? 'Quita ficha'
-            : 'Carta de tablero'
-        }
-      </span>
-    `;
-
-    /* Click de computadora */
-    b.addEventListener('click', () => {
-
-      if (!myTurn) {
-        status(
-          'gameStatus',
-          `Espera. Es turno de ${playerName(room, game.turn)}.`
+  game.board.forEach(
+    (card, index) => {
+      const button =
+        document.createElement(
+          'button'
         );
-        return;
+
+      button.type =
+        'button';
+
+      button.className =
+        'cell' +
+        (
+          card === FREE
+            ? ' free'
+            : ''
+        );
+
+      button.dataset.index =
+        index;
+
+      button.setAttribute(
+        'aria-label',
+        card === FREE
+          ? 'Esquina libre'
+          : `Casilla ${cardText(card)}`
+      );
+
+      button.innerHTML = `
+        <span class="${
+          isRedSuit(card)
+            ? 'suit-red'
+            : ''
+        }">
+          ${cardText(card)}
+        </span>
+      `;
+
+      const chipUid =
+        game.chips?.[
+          index
+        ];
+
+      if (chipUid) {
+        const chip =
+          document.createElement(
+            'span'
+          );
+
+        chip.className =
+          `chip ${playerColor(
+            room,
+            chipUid
+          )}`;
+
+        button.appendChild(
+          chip
+        );
       }
 
-      selectedCardIndex = i;
+      const legal =
+        !!selectedCard &&
+        game.turn ===
+          me.uid &&
+        !game.winner &&
+        isLegalTarget(
+          room,
+          selectedCard,
+          index
+        );
 
-      renderBoard(room);
-      renderHand(room);
+      if (legal) {
+        button.classList.add(
+          'legal'
+        );
+      }
 
-      status(
-        'gameStatus',
-        `Seleccionaste ${cardText(id)}. Ahora toca una casilla válida.`
+      button.addEventListener(
+        'click',
+        () => {
+          playAt(index);
+        }
       );
-    });
 
-    hand.appendChild(b);
-  });
+      boardElement.appendChild(
+        button
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   MANO
+========================================================= */
+
+function renderHand(room) {
+  const handElement =
+    $('hand');
+
+  handElement.innerHTML =
+    '';
+
+  const game =
+    room.game;
+
+  const cards =
+    game.hands?.[
+      me.uid
+    ] || [];
+
+  const myTurn =
+    game.turn === me.uid &&
+    !game.winner;
+
+  cards.forEach(
+    (id, index) => {
+      const button =
+        document.createElement(
+          'button'
+        );
+
+      button.type =
+        'button';
+
+      button.setAttribute(
+        'aria-pressed',
+        selectedCardIndex ===
+          index
+          ? 'true'
+          : 'false'
+      );
+
+      button.setAttribute(
+        'aria-label',
+        `Carta ${cardText(id)}`
+      );
+
+      button.className =
+        'card' +
+        (
+          selectedCardIndex ===
+            index
+            ? ' selected'
+            : ''
+        ) +
+        (
+          !myTurn
+            ? ' not-my-turn'
+            : ''
+        );
+
+      const type =
+        jackType(id);
+
+      button.innerHTML = `
+        <span>
+          ${cardText(id)}
+        </span>
+
+        <span class="big ${
+          isRedSuit(id)
+            ? 'suit-red'
+            : ''
+        }">
+          ${
+            SUIT_SYMBOL[
+              id.slice(-1)
+            ] || ''
+          }
+        </span>
+
+        <span class="special">
+          ${
+            type === 'wild'
+              ? 'Jota libre'
+              : type === 'remove'
+                ? 'Quita ficha'
+                : 'Carta de tablero'
+          }
+        </span>
+      `;
+
+      button.addEventListener(
+        'click',
+        () => {
+          if (!myTurn) {
+            status(
+              'gameStatus',
+              `Espera. Es turno de ${playerName(
+                room,
+                game.turn
+              )}.`
+            );
+
+            return;
+          }
+
+          /*
+           Tocar la misma carta
+           cancela la selección.
+          */
+
+          if (
+            selectedCardIndex ===
+            index
+          ) {
+            selectedCardIndex =
+              null;
+
+            renderBoard(room);
+
+            renderHand(room);
+
+            status(
+              'gameStatus',
+              'Selección cancelada.'
+            );
+
+            return;
+          }
+
+          selectedCardIndex =
+            index;
+
+          renderBoard(room);
+
+          renderHand(room);
+
+          status(
+            'gameStatus',
+            `Seleccionaste ${cardText(
+              id
+            )}. Ahora toca una casilla resaltada.`
+          );
+        }
+      );
+
+      handElement.appendChild(
+        button
+      );
+    }
+  );
 
   if (!myTurn) {
-
-    selectedCardIndex = null;
+    selectedCardIndex =
+      null;
 
     $('handHelp').textContent =
-      `Espera el turno de ${playerName(room, game.turn)}`;
-
-  } else if (selectedCardIndex === null) {
-
+      game.winner
+        ? 'Partida terminada'
+        : `Espera el turno de ${playerName(
+            room,
+            game.turn
+          )}`;
+  } else if (
+    selectedCardIndex ===
+    null
+  ) {
     $('handHelp').textContent =
       'Selecciona una carta';
-
   } else {
+    const selected =
+      cards[
+        selectedCardIndex
+      ];
 
     $('handHelp').textContent =
-      `Elegiste ${cardText(cards[selectedCardIndex])}`;
+      selected
+        ? `Elegiste ${cardText(
+            selected
+          )}`
+        : 'Selecciona una carta';
   }
 }
 
-function isLegalTarget(room,card,index){
-  const g=room.game; const boardCard=g.board[index]; const occupied=!!g.chips?.[index];
-  if(boardCard===FREE) return false;
-  const jt=jackType(card);
-  if(jt==='wild') return !occupied;
-  if(jt==='remove') return occupied && g.chips[index]!==me.uid;
-  return !occupied && boardCard===card;
+
+/* =========================================================
+   SECUENCIAS PROTEGIDAS
+========================================================= */
+
+function isChipProtectedBySequence(
+  game,
+  ownerUid,
+  index
+) {
+  const sequences =
+    game.completedSequences?.[
+      ownerUid
+    ] || [];
+
+  return sequences.some(
+    sequence =>
+      Array.isArray(
+        sequence.cells
+      ) &&
+      sequence.cells.includes(
+        index
+      )
+  );
 }
 
-async function playAt(index){
 
-  if (!currentRoomCode) return;
+/* =========================================================
+   VALIDAR CASILLA
+========================================================= */
 
-  if (!currentRoom?.game) return;
+function isLegalTarget(
+  room,
+  card,
+  index
+) {
+  const game =
+    room.game;
 
-  /* BLOQUEO DE TURNO */
-  if (currentRoom.game.turn !== me.uid) {
+  const boardCard =
+    game.board[
+      index
+    ];
 
-    selectedCardIndex = null;
+  const chipUid =
+    game.chips?.[
+      index
+    ];
+
+  const occupied =
+    !!chipUid;
+
+  if (
+    boardCard ===
+    FREE
+  ) {
+    return false;
+  }
+
+  const type =
+    jackType(card);
+
+  /*
+   Jota libre.
+  */
+
+  if (
+    type ===
+    'wild'
+  ) {
+    return !occupied;
+  }
+
+  /*
+   Jota para quitar.
+  */
+
+  if (
+    type ===
+    'remove'
+  ) {
+    if (
+      !occupied ||
+      chipUid === me.uid
+    ) {
+      return false;
+    }
+
+    /*
+     No se permite quitar una ficha
+     que ya forma parte de una secuencia.
+    */
+
+    if (
+      isChipProtectedBySequence(
+        game,
+        chipUid,
+        index
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /*
+   Carta normal.
+  */
+
+  return (
+    !occupied &&
+    boardCard === card
+  );
+}
+
+
+/* =========================================================
+   BUSCAR SECUENCIAS CREADAS POR LA ÚLTIMA FICHA
+========================================================= */
+
+function findSequencesCreatedByMove(
+  game,
+  uid,
+  placedIndex
+) {
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1]
+  ];
+
+  const own = index => {
+    return (
+      [
+        0,
+        9,
+        90,
+        99
+      ].includes(index) ||
+      game.chips?.[
+        index
+      ] === uid
+    );
+  };
+
+  const row =
+    Math.floor(
+      placedIndex / 10
+    );
+
+  const column =
+    placedIndex % 10;
+
+  const sequences = [];
+
+  for (
+    const [dr, dc]
+    of directions
+  ) {
+    /*
+     Una secuencia recién creada
+     necesariamente contiene la ficha
+     que acaba de ponerse.
+
+     Probamos todas las ventanas de 5
+     que contienen esa ficha.
+    */
+
+    for (
+      let offset = -4;
+      offset <= 0;
+      offset++
+    ) {
+      const cells = [];
+
+      let valid = true;
+      let containsMove = false;
+
+      for (
+        let step = 0;
+        step < 5;
+        step++
+      ) {
+        const r =
+          row +
+          dr * (
+            offset + step
+          );
+
+        const c =
+          column +
+          dc * (
+            offset + step
+          );
+
+        if (
+          r < 0 ||
+          r >= 10 ||
+          c < 0 ||
+          c >= 10
+        ) {
+          valid = false;
+
+          break;
+        }
+
+        const index =
+          r * 10 + c;
+
+        if (
+          index ===
+          placedIndex
+        ) {
+          containsMove = true;
+        }
+
+        if (!own(index)) {
+          valid = false;
+
+          break;
+        }
+
+        cells.push(index);
+      }
+
+      if (
+        valid &&
+        containsMove &&
+        cells.length === 5
+      ) {
+        const id =
+          [...cells]
+            .sort(
+              (a, b) =>
+                a - b
+            )
+            .join('-');
+
+        sequences.push({
+          id,
+          cells
+        });
+      }
+    }
+  }
+
+  /*
+   Elimina resultados duplicados.
+  */
+
+  return [
+    ...new Map(
+      sequences.map(
+        sequence => [
+          sequence.id,
+          sequence
+        ]
+      )
+    ).values()
+  ];
+}
+
+
+/* =========================================================
+   REGISTRAR NUEVAS SECUENCIAS
+========================================================= */
+
+function registerNewSequences(
+  game,
+  uid,
+  placedIndex
+) {
+  game.completedSequences =
+    game.completedSequences ||
+    {};
+
+  game.sequences =
+    game.sequences ||
+    {};
+
+  const registered =
+    Array.isArray(
+      game.completedSequences[
+        uid
+      ]
+    )
+      ? [
+          ...game.completedSequences[
+            uid
+          ]
+        ]
+      : [];
+
+  const candidates =
+    findSequencesCreatedByMove(
+      game,
+      uid,
+      placedIndex
+    );
+
+  for (
+    const candidate
+    of candidates
+  ) {
+    /*
+     Exactamente la misma secuencia
+     ya fue contada.
+    */
+
+    const duplicate =
+      registered.some(
+        previous =>
+          previous.id ===
+          candidate.id
+      );
+
+    if (duplicate) {
+      continue;
+    }
+
+    /*
+     Dos secuencias distintas pueden
+     compartir como máximo una casilla.
+
+     Esto evita que una línea de 6 fichas
+     se cuente como dos líneas.
+    */
+
+    const valid =
+      registered.every(
+        previous => {
+          const previousCells =
+            new Set(
+              previous.cells || []
+            );
+
+          const overlap =
+            candidate.cells
+              .filter(
+                cell =>
+                  previousCells.has(
+                    cell
+                  )
+              )
+              .length;
+
+          return overlap <= 1;
+        }
+      );
+
+    if (!valid) {
+      continue;
+    }
+
+    registered.push(
+      candidate
+    );
+
+    /*
+     Solo necesitamos hasta 2
+     para ganar.
+    */
+
+    if (
+      registered.length >= 2
+    ) {
+      break;
+    }
+  }
+
+  game.completedSequences[
+    uid
+  ] =
+    registered;
+
+  game.sequences[
+    uid
+  ] =
+    Math.min(
+      2,
+      registered.length
+    );
+
+  return game.sequences[
+    uid
+  ];
+}
+
+
+/* =========================================================
+   REALIZAR JUGADA
+========================================================= */
+
+async function playAt(index) {
+  if (
+    !currentRoomCode ||
+    !currentRoom?.game ||
+    moveInFlight
+  ) {
+    return;
+  }
+
+  if (
+    currentRoom.game.winner
+  ) {
+    return;
+  }
+
+  /*
+   Verificación local de turno.
+  */
+
+  if (
+    currentRoom.game.turn !==
+    me.uid
+  ) {
+    selectedCardIndex =
+      null;
 
     status(
       'gameStatus',
@@ -362,13 +2391,17 @@ async function playAt(index){
       )}.`
     );
 
-    renderHand(currentRoom);
+    renderHand(
+      currentRoom
+    );
 
     return;
   }
 
-  if (selectedCardIndex === null) {
-
+  if (
+    selectedCardIndex ===
+    null
+  ) {
     status(
       'gameStatus',
       'Primero selecciona una carta.'
@@ -377,236 +2410,785 @@ async function playAt(index){
     return;
   }
 
-
-  const cardIndex = selectedCardIndex;
+  const cardIndex =
+    selectedCardIndex;
 
   const roomRef =
-    ref(db, `rooms/${currentRoomCode}`);
+    ref(
+      db,
+      `rooms/${currentRoomCode}`
+    );
 
+  moveInFlight =
+    true;
 
-  let moveWasMade = false;
+  try {
+    const result =
+      await runTransaction(
+        roomRef,
+        room => {
+          if (
+            !room ||
+            room.status !==
+              'playing' ||
+            !room.game ||
+            room.game.winner ||
+            room.game.turn !==
+              me.uid
+          ) {
+            return;
+          }
 
+          /*
+           Deben seguir al menos
+           dos jugadores activos.
+          */
 
-  await runTransaction(roomRef, room => {
+          const active =
+            getActivePlayerIds(
+              room
+            );
 
-    if (!room) return room;
+          if (
+            active.length < 2
+          ) {
+            return;
+          }
 
-    if (room.status !== 'playing')
-      return room;
+          const hand =
+            room.game.hands?.[
+              me.uid
+            ];
 
-    if (!room.game)
-      return room;
+          if (
+            !Array.isArray(hand)
+          ) {
+            return;
+          }
 
-    if (room.game.winner)
-      return room;
+          const card =
+            hand[
+              cardIndex
+            ];
 
+          if (!card) {
+            return;
+          }
 
-    /* VALIDACIÓN REAL EN FIREBASE */
+          if (
+            !isLegalTarget(
+              room,
+              card,
+              index
+            )
+          ) {
+            return;
+          }
 
-    if (room.game.turn !== me.uid)
-      return room;
+          const type =
+            jackType(card);
 
+          room.game.chips =
+            room.game.chips ||
+            {};
 
-    const hand =
-      room.game.hands?.[me.uid] || [];
+          /*
+           Jota para quitar.
+          */
 
+          if (
+            type ===
+            'remove'
+          ) {
+            delete room.game.chips[
+              index
+            ];
+          } else {
+            /*
+             Carta normal o Jota libre.
+            */
 
-    const card = hand[cardIndex];
+            room.game.chips[
+              index
+            ] =
+              me.uid;
+          }
 
+          /*
+           Gastar carta.
+          */
 
-    if (!card)
-      return room;
+          hand.splice(
+            cardIndex,
+            1
+          );
 
+          /*
+           Robar carta.
+          */
 
-    if (!isLegalTarget(room, card, index))
-      return room;
+          if (
+            room.game.deck?.length
+          ) {
+            hand.push(
+              room.game.deck.shift()
+            );
+          }
 
+          room.game.hands[
+            me.uid
+          ] =
+            hand;
 
-    const jt = jackType(card);
+          /*
+           IMPORTANTE:
 
+           Una Jota de quitar NO crea
+           secuencia para quien la juega.
 
-    room.game.chips =
-      room.game.chips || {};
+           Solo una ficha recién colocada
+           puede crear una nueva secuencia.
+          */
 
+          let sequences =
+            room.game.sequences?.[
+              me.uid
+            ] || 0;
 
-    /* JOTA PARA QUITAR */
+          if (
+            type !==
+            'remove'
+          ) {
+            sequences =
+              registerNewSequences(
+                room.game,
+                me.uid,
+                index
+              );
+          }
 
-    if (jt === 'remove') {
+          /*
+           SEGUNDA SECUENCIA = GANADOR.
+          */
 
-      delete room.game.chips[index];
+          if (
+            sequences >= 2
+          ) {
+            room.game.winner =
+              me.uid;
 
-    }
+            room.game.finishReason =
+              'sequences';
 
-    /* CARTA NORMAL / JOTA LIBRE */
+            room.status =
+              'finished';
+          } else {
+            /*
+             Pasar al siguiente jugador
+             activo en orden circular.
+            */
 
-    else {
+            const nextPlayer =
+              getNextActivePlayer(
+                room,
+                me.uid
+              );
 
-      room.game.chips[index] = me.uid;
+            if (!nextPlayer) {
+              return;
+            }
 
-    }
+            room.game.turn =
+              nextPlayer;
+          }
 
+          room.game.moveCount =
+            (
+              room.game.moveCount ||
+              0
+            ) + 1;
 
-    /* QUITAR CARTA UTILIZADA */
+          room.game.updatedAt =
+            Date.now();
 
-    hand.splice(cardIndex, 1);
-
-
-    /* SACAR NUEVA CARTA */
-
-    if (room.game.deck?.length) {
-
-      hand.push(
-        room.game.deck.shift()
+          return room;
+        }
       );
 
+    if (
+      result.committed
+    ) {
+      selectedCardIndex =
+        null;
+
+      status(
+        'gameStatus',
+        'Movimiento realizado. Esperando al siguiente jugador…'
+      );
+    } else {
+      status(
+        'gameStatus',
+        'La jugada no fue válida o el turno ya cambió.'
+      );
     }
+  } catch (error) {
+    console.error(error);
+
+    status(
+      'gameStatus',
+      'No se pudo guardar la jugada. Revisa tu conexión e intenta otra vez.'
+    );
+  } finally {
+    moveInFlight =
+      false;
+  }
+}
 
 
-    room.game.hands[me.uid] = hand;
+/* =========================================================
+   CARTA MUERTA
+========================================================= */
 
-
-    /* CONTAR SECUENCIAS */
-
-    const sequences =
-      countSequences(
-        room.game,
-        me.uid
+$('deadCardBtn').addEventListener(
+  'click',
+  async () => {
+    if (
+      selectedCardIndex ===
+        null ||
+      !currentRoomCode ||
+      !currentRoom?.game
+    ) {
+      status(
+        'gameStatus',
+        'Selecciona primero una carta.'
       );
 
-
-    room.game.sequences[me.uid] =
-      sequences;
-
-
-    /* VICTORIA */
-
-    if (sequences >= 2) {
-
-      room.game.winner =
-        me.uid;
-
-      room.status =
-        'finished';
-
+      return;
     }
 
-    else {
+    if (
+      currentRoom.game.turn !==
+      me.uid
+    ) {
+      status(
+        'gameStatus',
+        'Solo puedes cambiar una carta muerta durante tu turno.'
+      );
 
-      /* CAMBIAR TURNO */
+      return;
+    }
 
-      const ids =
-        Object.keys(
-          room.players || {}
+    if (moveInFlight) {
+      return;
+    }
+
+    moveInFlight =
+      true;
+
+    const selectedIndex =
+      selectedCardIndex;
+
+    try {
+      const result =
+        await runTransaction(
+          ref(
+            db,
+            `rooms/${currentRoomCode}`
+          ),
+          room => {
+            if (
+              !room?.game ||
+              room.status !==
+                'playing' ||
+              room.game.turn !==
+                me.uid ||
+              room.game.winner
+            ) {
+              return;
+            }
+
+            const hand =
+              room.game.hands?.[
+                me.uid
+              ];
+
+            if (
+              !Array.isArray(hand)
+            ) {
+              return;
+            }
+
+            const card =
+              hand[
+                selectedIndex
+              ];
+
+            /*
+             Una Jota jamás se considera
+             carta muerta.
+            */
+
+            if (
+              !card ||
+              isJack(card) ||
+              !room.game.deck?.length
+            ) {
+              return;
+            }
+
+            const stillAvailable =
+              room.game.board.some(
+                (
+                  boardCard,
+                  boardIndex
+                ) => {
+                  return (
+                    boardCard ===
+                      card &&
+                    !room.game.chips?.[
+                      boardIndex
+                    ]
+                  );
+                }
+              );
+
+            if (stillAvailable) {
+              return;
+            }
+
+            /*
+             Cambiar carta.
+
+             NO consume turno.
+            */
+
+            hand.splice(
+              selectedIndex,
+              1,
+              room.game.deck.shift()
+            );
+
+            room.game.hands[
+              me.uid
+            ] =
+              hand;
+
+            room.game.updatedAt =
+              Date.now();
+
+            return room;
+          }
         );
 
+      if (result.committed) {
+        selectedCardIndex =
+          null;
 
-      const opponent =
-        ids.find(
-          uid => uid !== me.uid
+        status(
+          'gameStatus',
+          'Carta muerta cambiada. Sigue siendo tu turno.'
         );
-
-
-      if (opponent) {
-
-        room.game.turn =
-          opponent;
-
+      } else {
+        status(
+          'gameStatus',
+          'Esa carta no está muerta, es una Jota o ya no quedan cartas para robar.'
+        );
       }
+    } catch (error) {
+      console.error(error);
 
+      status(
+        'gameStatus',
+        'No se pudo cambiar la carta.'
+      );
+    } finally {
+      moveInFlight =
+        false;
+    }
+  }
+);
+
+
+/* =========================================================
+   RESULTADO
+========================================================= */
+
+function showResult(room) {
+  if (
+    !$('modal')
+      .classList
+      .contains('hidden')
+  ) {
+    return;
+  }
+
+  const winner =
+    room.game?.winner;
+
+  const reason =
+    room.game?.finishReason;
+
+  if (
+    winner ===
+    me.uid
+  ) {
+    $('modalTitle').textContent =
+      '🏆 ¡Ganaste!';
+  } else {
+    $('modalTitle').textContent =
+      'Partida terminada';
+  }
+
+  if (!winner) {
+    $('modalText').textContent =
+      'La partida terminó.';
+  } else if (
+    reason ===
+    'forfeit'
+  ) {
+    $('modalText').textContent =
+      `${playerName(
+        room,
+        winner
+      )} ganó porque quedó como último jugador en la partida.`;
+  } else if (
+    reason ===
+    'disconnect'
+  ) {
+    $('modalText').textContent =
+      `${playerName(
+        room,
+        winner
+      )} ganó porque los demás jugadores se desconectaron.`;
+  } else {
+    $('modalText').textContent =
+      `${playerName(
+        room,
+        winner
+      )} completó 2 secuencias de cinco.`;
+  }
+
+  $('modal')
+    .classList
+    .remove('hidden');
+}
+
+
+/* =========================================================
+   VOLVER AL LOBBY DESDE RESULTADO
+========================================================= */
+
+$('modalOk').addEventListener(
+  'click',
+  () => {
+    $('modal')
+      .classList
+      .add('hidden');
+
+    leaveRoom();
+  }
+);
+
+
+/* =========================================================
+   MATCHMAKING 1 VS 1
+========================================================= */
+
+$('matchBtn').addEventListener(
+  'click',
+  async () => {
+    if (!me) {
+      return;
     }
 
-
-    room.game.moveCount =
-      (room.game.moveCount || 0) + 1;
-
-
-    room.game.updatedAt =
-      Date.now();
-
-
-    moveWasMade = true;
-
-
-    return room;
-  });
-
-
-  if (moveWasMade) {
-
-    selectedCardIndex = null;
-
     status(
-      'gameStatus',
-      'Movimiento realizado. Esperando al oponente…'
+      'lobbyStatus',
+      'Buscando oponente…'
     );
 
-  }
+    $('matchBtn')
+      .classList
+      .add('hidden');
 
-  else {
+    $('cancelMatchBtn')
+      .classList
+      .remove('hidden');
 
-    status(
-      'gameStatus',
-      'Esa casilla no es válida para la carta seleccionada.'
+    const queueRef =
+      ref(
+        db,
+        `queue/${me.uid}`
+      );
+
+    await set(
+      queueRef,
+      {
+        uid:
+          me.uid,
+
+        name:
+          displayName,
+
+        createdAt:
+          Date.now()
+      }
     );
 
+    onDisconnect(
+      queueRef
+    ).remove();
+
+    await tryMatch();
+  }
+);
+
+
+/* =========================================================
+   CANCELAR MATCH
+========================================================= */
+
+$('cancelMatchBtn').addEventListener(
+  'click',
+  cancelMatch
+);
+
+
+async function cancelMatch() {
+  if (me) {
+    await remove(
+      ref(
+        db,
+        `queue/${me.uid}`
+      )
+    );
+  }
+
+  $('matchBtn')
+    .classList
+    .remove('hidden');
+
+  $('cancelMatchBtn')
+    .classList
+    .add('hidden');
+
+  if (!currentRoomCode) {
+    status(
+      'lobbyStatus',
+      ''
+    );
   }
 }
 
-function countSequences(game,uid){
-  const own=(idx)=> [0,9,90,99].includes(idx) || game.chips?.[idx]===uid;
-  const dirs=[[0,1],[1,0],[1,1],[1,-1]]; let found=[];
-  for(let r=0;r<10;r++) for(let c=0;c<10;c++) for(const [dr,dc] of dirs){
-    const cells=[]; for(let k=0;k<5;k++){ const rr=r+dr*k,cc=c+dc*k; if(rr<0||rr>=10||cc<0||cc>=10){cells.length=0;break;} cells.push(rr*10+cc); }
-    if(cells.length===5 && cells.every(own)) found.push(cells.join('-'));
+
+/* =========================================================
+   BUSCAR OPONENTE
+========================================================= */
+
+async function tryMatch() {
+  if (
+    !me ||
+    currentRoomCode
+  ) {
+    return;
   }
-  return Math.min(2,found.length);
+
+  const myQueueSnap =
+    await get(
+      ref(
+        db,
+        `queue/${me.uid}`
+      )
+    );
+
+  if (
+    !myQueueSnap.exists()
+  ) {
+    return;
+  }
+
+  const snap =
+    await get(
+      ref(
+        db,
+        'queue'
+      )
+    );
+
+  if (!snap.exists()) {
+    return;
+  }
+
+  const entries =
+    Object.values(
+      snap.val()
+    )
+      .filter(
+        player =>
+          player.uid !==
+          me.uid
+      )
+      .sort(
+        (a, b) =>
+          a.createdAt -
+          b.createdAt
+      );
+
+  if (!entries.length) {
+    return;
+  }
+
+  const other =
+    entries[0];
+
+  /*
+   Evitar dos salas simultáneas
+   para los mismos dos usuarios.
+  */
+
+  if (
+    String(me.uid)
+      .localeCompare(
+        String(other.uid)
+      ) > 0
+  ) {
+    return;
+  }
+
+  const claimRef =
+    ref(
+      db,
+      `queue/${other.uid}`
+    );
+
+  const claim =
+    await runTransaction(
+      claimRef,
+      value => {
+        if (
+          !value ||
+          value.uid !==
+            other.uid
+        ) {
+          return;
+        }
+
+        return null;
+      }
+    );
+
+  if (!claim.committed) {
+    return;
+  }
+
+  await remove(
+    ref(
+      db,
+      `queue/${me.uid}`
+    )
+  );
+
+  let code =
+    randomCode();
+
+  while (
+    (
+      await get(
+        ref(
+          db,
+          `rooms/${code}`
+        )
+      )
+    ).exists()
+  ) {
+    code =
+      randomCode();
+  }
+
+  const now =
+    Date.now();
+
+  const room = {
+    code,
+
+    host:
+      me.uid,
+
+    status:
+      'waiting',
+
+    maxPlayers:
+      2,
+
+    createdAt:
+      now,
+
+    players: {
+      [me.uid]: {
+        name:
+          displayName,
+
+        joinedAt:
+          now
+      },
+
+      [other.uid]: {
+        name:
+          other.name,
+
+        joinedAt:
+          now + 1
+      }
+    }
+  };
+
+  await set(
+    ref(
+      db,
+      `rooms/${code}`
+    ),
+    room
+  );
+
+  await set(
+    ref(
+      db,
+      `matchesByUser/${other.uid}`
+    ),
+    {
+      roomCode:
+        code,
+
+      createdAt:
+        Date.now()
+    }
+  );
+
+  enterRoom(code);
 }
 
-$('deadCardBtn').addEventListener('click', async()=>{
-  if(selectedCardIndex===null||!currentRoomCode||!currentRoom?.game) return status('gameStatus','Selecciona primero una carta.');
-  const card=currentRoom.game.hands?.[me.uid]?.[selectedCardIndex]; if(!card||isJack(card)) return status('gameStatus','Esa carta no puede cambiarse como carta muerta.');
-  const stillAvailable=currentRoom.game.board.some((b,i)=>b===card && !currentRoom.game.chips?.[i]);
-  if(stillAvailable) return status('gameStatus','Todavía existe una casilla libre para esa carta.');
-  const idx=selectedCardIndex; await runTransaction(ref(db,`rooms/${currentRoomCode}`),room=>{
-    if(!room?.game||room.game.turn!==me.uid) return room; const hand=room.game.hands?.[me.uid]||[]; if(!hand[idx]||room.game.deck.length===0) return room;
-    hand.splice(idx,1,room.game.deck.shift()); room.game.hands[me.uid]=hand; room.game.updatedAt=Date.now(); return room;
-  }); selectedCardIndex=null;
-});
 
-function showResult(room){
-  if(!$('modal').classList.contains('hidden')) return;
-  const win=room.game?.winner; $('modalTitle').textContent=win===me.uid?'¡Ganaste!':'Partida terminada'; $('modalText').textContent=win?`${playerName(room,win)} completó 2 líneas de cinco.`:'La partida terminó.'; $('modal').classList.remove('hidden');
-}
-$('modalOk').addEventListener('click',()=>{ $('modal').classList.add('hidden'); leaveRoom(); });
+/* =========================================================
+   REINTENTAR MATCH
+========================================================= */
 
-// Matchmaking simple: cada jugador crea una entrada en /queue. El segundo toma al primero y crea una sala.
-$('matchBtn').addEventListener('click', async()=>{
-  if(!me) return; status('lobbyStatus','Buscando oponente…'); $('matchBtn').classList.add('hidden'); $('cancelMatchBtn').classList.remove('hidden');
-  const qRef=ref(db,`queue/${me.uid}`); await set(qRef,{uid:me.uid,name:displayName,createdAt:Date.now()}); onDisconnect(qRef).remove();
-  await tryMatch();
-});
-$('cancelMatchBtn').addEventListener('click',cancelMatch);
-async function cancelMatch(){ if(me) await remove(ref(db,`queue/${me.uid}`)); $('matchBtn').classList.remove('hidden'); $('cancelMatchBtn').classList.add('hidden'); if(!currentRoomCode) status('lobbyStatus',''); }
+setInterval(
+  () => {
+    if (
+      me &&
+      !currentRoomCode &&
+      !$('cancelMatchBtn')
+        .classList
+        .contains('hidden')
+    ) {
+      tryMatch();
+    }
+  },
+  2500
+);
 
-onValue(ref(db,'matches'),snap=>{
-  if(!me||!snap.exists()) return; const all=snap.val();
-  for(const [id,m] of Object.entries(all)){ if((m.a===me.uid||m.b===me.uid)&&m.roomCode&&!currentRoomCode){ remove(ref(db,`matches/${id}`)); enterRoom(m.roomCode); break; } }
-});
 
-async function tryMatch(){
-  const snap=await get(ref(db,'queue')); if(!snap.exists()) return;
-  const entries=Object.values(snap.val()).filter(x=>x.uid!==me.uid).sort((a,b)=>a.createdAt-b.createdAt); if(!entries.length) return;
-  const other=entries[0]; const claimRef=ref(db,`queue/${other.uid}`);
-  const claim=await runTransaction(claimRef,val=>val?null:val); if(!claim.committed) return;
-  await remove(ref(db,`queue/${me.uid}`));
-  let code=randomCode(); while((await get(ref(db,`rooms/${code}`))).exists()) code=randomCode();
-  await set(ref(db,`rooms/${code}`),{code,host:me.uid,status:'waiting',createdAt:Date.now(),players:{[me.uid]:{name:displayName,joinedAt:Date.now()},[other.uid]:{name:other.name,joinedAt:Date.now()}}});
-  const matchId=`${Date.now()}_${Math.random().toString(36).slice(2,7)}`; await set(ref(db,`matches/${matchId}`),{a:me.uid,b:other.uid,roomCode:code,createdAt:Date.now()}); enterRoom(code);
-}
-
-// Cada pocos segundos, si sigues en cola, intenta tomar a un rival recién llegado.
-setInterval(()=>{ if(me && !currentRoomCode && !$('cancelMatchBtn').classList.contains('hidden')) tryMatch(); },2500);
-
-function escapeHtml(str=''){ return String(str).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+/* =========================================================
+   INICIAR APP
+========================================================= */
 
 bootstrap();
