@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>KCequence Online</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand"><span>KC</span>equence</div>
+        <div class="tagline">Cartas · estrategia · conexión</div>
+      </div>
+      <div class="player-pill" id="playerPill">Conectando…</div>
+    </header>
+
+    <section id="authView" class="panel auth-panel">
+      <h1>Entra a KCequence</h1>
+      <p>Escribe el nombre que verán los demás jugadores.</p>
+      <form id="nameForm" class="stack">
+        <input id="nameInput" maxlength="18" placeholder="Tu nombre" autocomplete="nickname" required />
+        <button class="primary" type="submit">Entrar al lobby</button>
+      </form>
+    </section>
+
+    <section id="lobbyView" class="hidden">
+      <div class="hero-grid">
+        <article class="panel">
+          <div class="eyebrow">PARTIDA PRIVADA</div>
+          <h2>Juega con amigos</h2>
+          <p>Crea una sala y comparte el código.</p>
+          <button id="createRoomBtn" class="primary" type="button">Crear sala</button>
+        </article>
+
+        <article class="panel">
+          <div class="eyebrow">UNIRSE</div>
+          <h2>¿Ya tienes código?</h2>
+          <div class="join-row">
+            <input id="roomCodeInput" maxlength="6" placeholder="ABC123" />
+            <button id="joinRoomBtn" type="button">Entrar</button>
+          </div>
+        </article>
+
+        <article class="panel accent-panel">
+          <div class="eyebrow">MATCHMAKING</div>
+          <h2>Rival aleatorio</h2>
+          <p>Busca otro jugador conectado.</p>
+          <button id="matchBtn" class="primary" type="button">Buscar oponente</button>
+          <button id="cancelMatchBtn" class="ghost hidden" type="button">Cancelar búsqueda</button>
+        </article>
+      </div>
+      <p class="status" id="lobbyStatus" aria-live="polite"></p>
+    </section>
+
+    <section id="roomView" class="hidden">
+      <div class="room-head panel">
+        <div>
+          <div class="eyebrow">SALA</div>
+          <h2 id="roomTitle">------</h2>
+          <p id="roomSubtitle">Esperando jugadores…</p>
+        </div>
+        <div class="room-actions">
+          <button id="startBtn" class="primary hidden" type="button">Iniciar partida</button>
+          <button id="leaveBtn" class="ghost" type="button">Salir</button>
+        </div>
+      </div>
+      <div id="playersList" class="players-grid"></div>
+      <p class="status" id="roomStatus" aria-live="polite"></p>
+    </section>
+
+    <section id="gameView" class="hidden game-layout">
+      <div class="game-top panel">
+        <div>
+          <div class="eyebrow">PARTIDA EN CURSO</div>
+          <h2 id="turnLabel">Turno</h2>
+          <p id="scoreLabel"></p>
+        </div>
+        <button id="exitGameBtn" class="ghost" type="button">Salir</button>
+      </div>
+
+      <div class="board-wrap panel">
+        <div id="board" class="board" aria-label="Tablero KCequence"></div>
+      </div>
+
+      <div class="panel hand-panel">
+        <div class="hand-title">
+          <div>
+            <div class="eyebrow">TU MANO</div>
+            <strong id="handHelp">Selecciona una carta</strong>
+          </div>
+          <button id="deadCardBtn" class="ghost" type="button">Cambiar carta muerta</button>
+        </div>
+        <div id="hand" class="hand"></div>
+      </div>
+      <p class="status" id="gameStatus" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="eyebrow">RESULTADO</div>
+      <h2 id="modalTitle">Partida terminada</h2>
+      <p id="modalText"></p>
+      <button id="modalOk" class="primary" type="button">Volver al lobby</button>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
