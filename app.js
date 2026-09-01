@@ -641,12 +641,13 @@ $('createRoomBtn').addEventListener(
 
 
 /* =========================================================
-   UNIRSE A SALA
+   UNIRSE A SALA - 2 A 4 JUGADORES
 ========================================================= */
 
 $('joinRoomBtn').addEventListener(
   'click',
   async () => {
+
     if (!me) {
       return;
     }
@@ -662,7 +663,6 @@ $('joinRoomBtn').addEventListener(
         'lobbyStatus',
         'Escribe un código de 6 caracteres.'
       );
-
       return;
     }
 
@@ -671,87 +671,157 @@ $('joinRoomBtn').addEventListener(
       'Entrando a la sala…'
     );
 
-    const roomRef =
-      ref(
-        db,
-        `rooms/${code}`
-      );
+    try {
 
-    const before =
-      await get(roomRef);
+      const roomRef =
+        ref(
+          db,
+          `rooms/${code}`
+        );
 
-    if (!before.exists()) {
-      status(
-        'lobbyStatus',
-        'No existe esa sala.'
-      );
+      /*
+       Primero comprobamos que exista.
+      */
+      const roomSnap =
+        await get(roomRef);
 
-      return;
-    }
+      if (!roomSnap.exists()) {
+        status(
+          'lobbyStatus',
+          'No existe esa sala.'
+        );
+        return;
+      }
 
-    if (
-      before.val().status !==
-      'waiting'
-    ) {
-      status(
-        'lobbyStatus',
-        'Esa partida ya comenzó.'
-      );
+      const room =
+        roomSnap.val();
 
-      return;
-    }
+      /*
+       Solo se puede entrar mientras
+       la partida no haya comenzado.
+      */
+      if (
+        room.status !== 'waiting'
+      ) {
+        status(
+          'lobbyStatus',
+          'La partida ya comenzó.'
+        );
+        return;
+      }
 
-    const result =
-      await runTransaction(
-        roomRef,
-        room => {
-          if (
-            !room ||
-            room.status !==
-              'waiting'
-          ) {
-            return;
-          }
+      const players =
+        room.players || {};
 
-          room.players =
-            room.players || {};
+      /*
+       Si ya estamos registrados,
+       simplemente entramos.
+      */
+      if (players[me.uid]) {
+        enterRoom(code);
+        return;
+      }
 
-          const count =
-            Object.keys(
-              room.players
-            ).length;
+      /*
+       Máximo 4 jugadores.
+      */
+      const playerCount =
+        Object.keys(players).length;
 
-          if (
-            count >= 4 &&
-            !room.players[me.uid]
-          ) {
-            return;
-          }
+      if (playerCount >= 4) {
+        status(
+          'lobbyStatus',
+          'La sala ya tiene 4 jugadores.'
+        );
+        return;
+      }
 
-          if (!room.players[me.uid]) {
-            room.players[me.uid] = {
-              name:
-                displayName,
+      /*
+       Agregar únicamente nuestro jugador.
 
-              joinedAt:
-                Date.now()
-            };
-          }
-
-          return room;
+       No modificamos todo el objeto room.
+      */
+      await set(
+        ref(
+          db,
+          `rooms/${code}/players/${me.uid}`
+        ),
+        {
+          name: displayName,
+          joinedAt: Date.now()
         }
       );
 
-    if (!result.committed) {
-      status(
-        'lobbyStatus',
-        'No se pudo entrar. La sala está llena o la partida ya comenzó.'
+      /*
+       Volvemos a comprobar por seguridad.
+      */
+      const checkSnap =
+        await get(roomRef);
+
+      if (!checkSnap.exists()) {
+        status(
+          'lobbyStatus',
+          'La sala fue cerrada.'
+        );
+        return;
+      }
+
+      const updatedRoom =
+        checkSnap.val();
+
+      const updatedPlayers =
+        updatedRoom.players || {};
+
+      /*
+       En el improbable caso de que dos
+       personas hayan entrado exactamente
+       al mismo tiempo y sean más de 4,
+       quitamos al último que entró.
+      */
+      const ids =
+        Object.entries(updatedPlayers)
+          .sort(
+            ([, a], [, b]) =>
+              (a.joinedAt || 0) -
+              (b.joinedAt || 0)
+          )
+          .map(([uid]) => uid);
+
+      if (
+        ids.length > 4 &&
+        !ids.slice(0, 4).includes(me.uid)
+      ) {
+
+        await remove(
+          ref(
+            db,
+            `rooms/${code}/players/${me.uid}`
+          )
+        );
+
+        status(
+          'lobbyStatus',
+          'La sala se llenó justo antes de que entraras.'
+        );
+
+        return;
+      }
+
+      enterRoom(code);
+
+    } catch (error) {
+
+      console.error(
+        'ERROR AL ENTRAR:',
+        error
       );
 
-      return;
+      status(
+        'lobbyStatus',
+        'Error al entrar a la sala. Revisa tu conexión.'
+      );
     }
 
-    enterRoom(code);
   }
 );
 
@@ -1248,15 +1318,13 @@ $('startBtn').addEventListener(
             );
 
           if (
-            current.host !==
-              me.uid ||
-            current.status !==
-              'waiting' ||
+            current.host !== me.uid ||
+            current.status !== 'waiting' ||
             currentIds.length < 2 ||
             currentIds.length > 4
-          ) {
+            ) {
             return;
-          }
+            }
 
           /*
            Si entró/salió alguien entre
@@ -2983,8 +3051,8 @@ async function cancelMatch() {
 /* =========================================================
    BUSCAR OPONENTE
 ========================================================= */
-
 async function tryMatch() {
+
   if (
     !me ||
     currentRoomCode
@@ -2992,180 +3060,298 @@ async function tryMatch() {
     return;
   }
 
-  const myQueueSnap =
-    await get(
+  try {
+
+    /*
+     Confirmamos que YO sigo
+     en la cola.
+    */
+
+    const myQueueRef =
       ref(
         db,
         `queue/${me.uid}`
-      )
-    );
-
-  if (
-    !myQueueSnap.exists()
-  ) {
-    return;
-  }
-
-  const snap =
-    await get(
-      ref(
-        db,
-        'queue'
-      )
-    );
-
-  if (!snap.exists()) {
-    return;
-  }
-
-  const entries =
-    Object.values(
-      snap.val()
-    )
-      .filter(
-        player =>
-          player.uid !==
-          me.uid
-      )
-      .sort(
-        (a, b) =>
-          a.createdAt -
-          b.createdAt
       );
 
-  if (!entries.length) {
-    return;
-  }
+    const myQueueSnap =
+      await get(myQueueRef);
 
-  const other =
-    entries[0];
+    if (!myQueueSnap.exists()) {
+      return;
+    }
 
-  /*
-   Evitar dos salas simultáneas
-   para los mismos dos usuarios.
-  */
 
-  if (
-    String(me.uid)
-      .localeCompare(
-        String(other.uid)
-      ) > 0
-  ) {
-    return;
-  }
+    /*
+     Leer todos los jugadores
+     que están buscando partida.
+    */
 
-  const claimRef =
-    ref(
-      db,
-      `queue/${other.uid}`
-    );
-
-  const claim =
-    await runTransaction(
-      claimRef,
-      value => {
-        if (
-          !value ||
-          value.uid !==
-            other.uid
-        ) {
-          return;
-        }
-
-        return null;
-      }
-    );
-
-  if (!claim.committed) {
-    return;
-  }
-
-  await remove(
-    ref(
-      db,
-      `queue/${me.uid}`
-    )
-  );
-
-  let code =
-    randomCode();
-
-  while (
-    (
+    const queueSnap =
       await get(
         ref(
           db,
-          `rooms/${code}`
+          'queue'
         )
-      )
-    ).exists()
-  ) {
-    code =
+      );
+
+    if (!queueSnap.exists()) {
+      status(
+        'lobbyStatus',
+        'Buscando oponente…'
+      );
+      return;
+    }
+
+
+    const queue =
+      queueSnap.val();
+
+
+    const opponents =
+      Object.values(queue)
+        .filter(
+          player =>
+            player &&
+            player.uid &&
+            player.uid !== me.uid
+        )
+        .sort(
+          (a, b) =>
+            (a.createdAt || 0) -
+            (b.createdAt || 0)
+        );
+
+
+    if (!opponents.length) {
+      status(
+        'lobbyStatus',
+        'Buscando oponente…'
+      );
+      return;
+    }
+
+
+    const other =
+      opponents[0];
+
+
+    /*
+     Para evitar que los DOS creen
+     una sala diferente:
+
+     solamente el UID alfabéticamente
+     menor crea la sala.
+    */
+
+    const creatorUid =
+      [
+        me.uid,
+        other.uid
+      ]
+        .sort()[0];
+
+
+    if (
+      creatorUid !== me.uid
+    ) {
+
+      /*
+       El otro jugador será quien
+       cree la sala.
+
+       Nosotros esperamos la notificación
+       en matchesByUser.
+      */
+
+      status(
+        'lobbyStatus',
+        'Oponente encontrado. Preparando partida…'
+      );
+
+      return;
+    }
+
+
+    /*
+     Antes de continuar comprobamos que
+     el rival siga esperando.
+    */
+
+    const rivalSnap =
+      await get(
+        ref(
+          db,
+          `queue/${other.uid}`
+        )
+      );
+
+    if (!rivalSnap.exists()) {
+      return;
+    }
+
+
+    /*
+     Crear código de sala único.
+    */
+
+    let code =
       randomCode();
-  }
 
-  const now =
-    Date.now();
+    let roomExists =
+      true;
 
-  const room = {
-    code,
 
-    host:
-      me.uid,
+    while (roomExists) {
 
-    status:
-      'waiting',
+      const check =
+        await get(
+          ref(
+            db,
+            `rooms/${code}`
+          )
+        );
 
-    maxPlayers:
-      2,
+      roomExists =
+        check.exists();
 
-    createdAt:
-      now,
-
-    players: {
-      [me.uid]: {
-        name:
-          displayName,
-
-        joinedAt:
-          now
-      },
-
-      [other.uid]: {
-        name:
-          other.name,
-
-        joinedAt:
-          now + 1
+      if (roomExists) {
+        code =
+          randomCode();
       }
     }
-  };
 
-  await set(
-    ref(
-      db,
-      `rooms/${code}`
-    ),
-    room
-  );
 
-  await set(
-    ref(
-      db,
-      `matchesByUser/${other.uid}`
-    ),
-    {
-      roomCode:
-        code,
+    const now =
+      Date.now();
+
+
+    /*
+     Crear partida 1 VS 1.
+    */
+
+    const room = {
+
+      code,
+
+      host:
+        me.uid,
+
+      status:
+        'waiting',
+
+      maxPlayers:
+        2,
+
+      matchType:
+        'public',
 
       createdAt:
-        Date.now()
-    }
-  );
+        now,
 
-  enterRoom(code);
+      players: {
+
+        [me.uid]: {
+          name:
+            displayName,
+          joinedAt:
+            now
+        },
+
+        [other.uid]: {
+          name:
+            other.name || 'Jugador',
+          joinedAt:
+            now + 1
+        }
+
+      }
+
+    };
+
+
+    /*
+     Primero crear la sala.
+    */
+
+    await set(
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+      room
+    );
+
+
+    /*
+     Luego quitar a los dos
+     de la cola.
+    */
+
+    await Promise.all([
+
+      remove(
+        ref(
+          db,
+          `queue/${me.uid}`
+        )
+      ),
+
+      remove(
+        ref(
+          db,
+          `queue/${other.uid}`
+        )
+      )
+
+    ]);
+
+
+    /*
+     Avisar al rival.
+    */
+
+    await set(
+      ref(
+        db,
+        `matchesByUser/${other.uid}`
+      ),
+      {
+        roomCode:
+          code,
+
+        createdAt:
+          Date.now()
+      }
+    );
+
+
+    status(
+      'lobbyStatus',
+      '¡Oponente encontrado!'
+    );
+
+
+    /*
+     Entrar nosotros.
+    */
+
+    enterRoom(code);
+
+  } catch (error) {
+
+    console.error(
+      'ERROR MATCHMAKING:',
+      error
+    );
+
+    status(
+      'lobbyStatus',
+      'Hubo un problema buscando oponente. Intentando nuevamente…'
+    );
+
+  }
+
 }
-
 
 /* =========================================================
    REINTENTAR MATCH
