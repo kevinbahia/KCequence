@@ -139,12 +139,105 @@ async function leaveRoom(){
 function leaveToLobby(msg=''){ if(roomUnsub){roomUnsub();roomUnsub=null;} currentRoomCode=null; currentRoom=null; selectedCardIndex=null; showView('lobbyView'); status('lobbyStatus',msg); }
 
 function renderGame(room){
-  showView('gameView'); currentRoom=room;
-  const game=room.game; if(!game) return;
-  const myTurn=game.turn===me.uid;
-  $('turnLabel').textContent = game.winner ? 'Partida terminada' : myTurn ? 'Tu turno' : `Turno de ${playerName(room,game.turn)}`;
-  const ids=Object.keys(room.players||{}); $('scoreLabel').textContent=ids.map(uid=>`${playerName(room,uid)}: ${game.sequences?.[uid]||0}/2`).join(' · ');
-  renderBoard(room); renderHand(room); status('gameStatus', myTurn?'Selecciona una carta y una casilla válida.':'Espera el movimiento de tu rival.');
+
+  showView('gameView');
+
+  currentRoom = room;
+
+  const game = room.game;
+
+  if (!game) return;
+
+
+  const myTurn =
+    game.turn === me.uid;
+
+
+  /* Si cambió el turno, borrar selección anterior */
+
+  if (!myTurn) {
+
+    selectedCardIndex = null;
+
+  }
+
+
+  if (game.winner) {
+
+    $('turnLabel').textContent =
+      'Partida terminada';
+
+  }
+
+  else if (myTurn) {
+
+    $('turnLabel').textContent =
+      '🟢 TU TURNO';
+
+  }
+
+  else {
+
+    $('turnLabel').textContent =
+      `⏳ Turno de ${playerName(
+        room,
+        game.turn
+      )}`;
+
+  }
+
+
+  const ids =
+    Object.keys(
+      room.players || {}
+    );
+
+
+  $('scoreLabel').textContent =
+    ids
+      .map(
+        uid =>
+          `${playerName(room, uid)}: ${
+            game.sequences?.[uid] || 0
+          }/2`
+      )
+      .join(' · ');
+
+
+  renderBoard(room);
+
+  renderHand(room);
+
+
+  if (game.winner) {
+
+    status(
+      'gameStatus',
+      'La partida terminó.'
+    );
+
+  }
+
+  else if (myTurn) {
+
+    status(
+      'gameStatus',
+      'Tu turno: selecciona una carta y después una casilla.'
+    );
+
+  }
+
+  else {
+
+    status(
+      'gameStatus',
+      `Espera a que ${playerName(
+        room,
+        game.turn
+      )} realice su movimiento.`
+    );
+
+  }
 }
 
 function renderBoard(room){
@@ -158,13 +251,87 @@ function renderBoard(room){
 }
 
 function renderHand(room){
-  const hand=$('hand'); hand.innerHTML=''; const cards=room.game.hands?.[me.uid]||[];
-  cards.forEach((id,i)=>{
-    const b=document.createElement('button'); b.type='button'; b.className='card'+(selectedCardIndex===i?' selected':'');
-    const jt=jackType(id); b.innerHTML=`<span>${cardText(id)}</span><span class="big ${isRedSuit(id)?'suit-red':''}">${SUIT_SYMBOL[id.slice(-1)]||''}</span><span class="special">${jt==='wild'?'Jota libre':jt==='remove'?'Quita ficha':'Carta de tablero'}</span>`;
-    b.addEventListener('click',()=>{ if(room.game.turn!==me.uid) return; selectedCardIndex=i; renderGame(room); }); hand.appendChild(b);
+  const hand = $('hand');
+  hand.innerHTML = '';
+
+  const game = room.game;
+  const cards = game.hands?.[me.uid] || [];
+
+  const myTurn = game.turn === me.uid && !game.winner;
+
+  cards.forEach((id, i) => {
+
+    const b = document.createElement('button');
+
+    b.type = 'button';
+
+    b.className =
+      'card' +
+      (selectedCardIndex === i ? ' selected' : '') +
+      (!myTurn ? ' not-my-turn' : '');
+
+    const jt = jackType(id);
+
+    b.innerHTML = `
+      <span>${cardText(id)}</span>
+
+      <span class="big ${isRedSuit(id) ? 'suit-red' : ''}">
+        ${SUIT_SYMBOL[id.slice(-1)] || ''}
+      </span>
+
+      <span class="special">
+        ${
+          jt === 'wild'
+            ? 'Jota libre'
+            : jt === 'remove'
+            ? 'Quita ficha'
+            : 'Carta de tablero'
+        }
+      </span>
+    `;
+
+    /* Click de computadora */
+    b.addEventListener('click', () => {
+
+      if (!myTurn) {
+        status(
+          'gameStatus',
+          `Espera. Es turno de ${playerName(room, game.turn)}.`
+        );
+        return;
+      }
+
+      selectedCardIndex = i;
+
+      renderBoard(room);
+      renderHand(room);
+
+      status(
+        'gameStatus',
+        `Seleccionaste ${cardText(id)}. Ahora toca una casilla válida.`
+      );
+    });
+
+    hand.appendChild(b);
   });
-  $('handHelp').textContent=selectedCardIndex===null?'Selecciona una carta':`Elegiste ${cardText(cards[selectedCardIndex])}`;
+
+  if (!myTurn) {
+
+    selectedCardIndex = null;
+
+    $('handHelp').textContent =
+      `Espera el turno de ${playerName(room, game.turn)}`;
+
+  } else if (selectedCardIndex === null) {
+
+    $('handHelp').textContent =
+      'Selecciona una carta';
+
+  } else {
+
+    $('handHelp').textContent =
+      `Elegiste ${cardText(cards[selectedCardIndex])}`;
+  }
 }
 
 function isLegalTarget(room,card,index){
@@ -177,22 +344,212 @@ function isLegalTarget(room,card,index){
 }
 
 async function playAt(index){
-  if(selectedCardIndex===null||!currentRoomCode) return;
-  const cardIndex=selectedCardIndex;
-  const roomRef=ref(db,`rooms/${currentRoomCode}`);
-  let committed=false;
-  await runTransaction(roomRef,room=>{
-    if(!room||room.status!=='playing'||!room.game||room.game.turn!==me.uid||room.game.winner) return room;
-    const hand=room.game.hands?.[me.uid]||[]; const card=hand[cardIndex]; if(!card||!isLegalTarget(room,card,index)) return room;
-    const jt=jackType(card); room.game.chips=room.game.chips||{};
-    if(jt==='remove') delete room.game.chips[index]; else room.game.chips[index]=me.uid;
-    hand.splice(cardIndex,1); if(room.game.deck?.length) hand.push(room.game.deck.shift()); room.game.hands[me.uid]=hand;
-    const seq=countSequences(room.game,me.uid); room.game.sequences[me.uid]=seq;
-    if(seq>=2){ room.game.winner=me.uid; room.status='finished'; }
-    else { const ids=Object.keys(room.players||{}); room.game.turn=ids.find(uid=>uid!==me.uid)||me.uid; }
-    room.game.moveCount=(room.game.moveCount||0)+1; room.game.updatedAt=Date.now(); committed=true; return room;
+
+  if (!currentRoomCode) return;
+
+  if (!currentRoom?.game) return;
+
+  /* BLOQUEO DE TURNO */
+  if (currentRoom.game.turn !== me.uid) {
+
+    selectedCardIndex = null;
+
+    status(
+      'gameStatus',
+      `Espera. Es turno de ${playerName(
+        currentRoom,
+        currentRoom.game.turn
+      )}.`
+    );
+
+    renderHand(currentRoom);
+
+    return;
+  }
+
+  if (selectedCardIndex === null) {
+
+    status(
+      'gameStatus',
+      'Primero selecciona una carta.'
+    );
+
+    return;
+  }
+
+
+  const cardIndex = selectedCardIndex;
+
+  const roomRef =
+    ref(db, `rooms/${currentRoomCode}`);
+
+
+  let moveWasMade = false;
+
+
+  await runTransaction(roomRef, room => {
+
+    if (!room) return room;
+
+    if (room.status !== 'playing')
+      return room;
+
+    if (!room.game)
+      return room;
+
+    if (room.game.winner)
+      return room;
+
+
+    /* VALIDACIÓN REAL EN FIREBASE */
+
+    if (room.game.turn !== me.uid)
+      return room;
+
+
+    const hand =
+      room.game.hands?.[me.uid] || [];
+
+
+    const card = hand[cardIndex];
+
+
+    if (!card)
+      return room;
+
+
+    if (!isLegalTarget(room, card, index))
+      return room;
+
+
+    const jt = jackType(card);
+
+
+    room.game.chips =
+      room.game.chips || {};
+
+
+    /* JOTA PARA QUITAR */
+
+    if (jt === 'remove') {
+
+      delete room.game.chips[index];
+
+    }
+
+    /* CARTA NORMAL / JOTA LIBRE */
+
+    else {
+
+      room.game.chips[index] = me.uid;
+
+    }
+
+
+    /* QUITAR CARTA UTILIZADA */
+
+    hand.splice(cardIndex, 1);
+
+
+    /* SACAR NUEVA CARTA */
+
+    if (room.game.deck?.length) {
+
+      hand.push(
+        room.game.deck.shift()
+      );
+
+    }
+
+
+    room.game.hands[me.uid] = hand;
+
+
+    /* CONTAR SECUENCIAS */
+
+    const sequences =
+      countSequences(
+        room.game,
+        me.uid
+      );
+
+
+    room.game.sequences[me.uid] =
+      sequences;
+
+
+    /* VICTORIA */
+
+    if (sequences >= 2) {
+
+      room.game.winner =
+        me.uid;
+
+      room.status =
+        'finished';
+
+    }
+
+    else {
+
+      /* CAMBIAR TURNO */
+
+      const ids =
+        Object.keys(
+          room.players || {}
+        );
+
+
+      const opponent =
+        ids.find(
+          uid => uid !== me.uid
+        );
+
+
+      if (opponent) {
+
+        room.game.turn =
+          opponent;
+
+      }
+
+    }
+
+
+    room.game.moveCount =
+      (room.game.moveCount || 0) + 1;
+
+
+    room.game.updatedAt =
+      Date.now();
+
+
+    moveWasMade = true;
+
+
+    return room;
   });
-  if(committed) selectedCardIndex=null;
+
+
+  if (moveWasMade) {
+
+    selectedCardIndex = null;
+
+    status(
+      'gameStatus',
+      'Movimiento realizado. Esperando al oponente…'
+    );
+
+  }
+
+  else {
+
+    status(
+      'gameStatus',
+      'Esa casilla no es válida para la carta seleccionada.'
+    );
+
+  }
 }
 
 function countSequences(game,uid){
