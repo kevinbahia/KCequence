@@ -25,7 +25,6 @@
     content="index, follow"
   >
 
-  <!-- Evitar versiones antiguas -->
   <meta
     http-equiv="Cache-Control"
     content="no-cache, no-store, must-revalidate"
@@ -46,8 +45,14 @@
   </title>
 
   <link
+    rel="icon"
+    type="image/png"
+    href="assets/img/kcequence-logo.png"
+  >
+
+  <link
     rel="stylesheet"
-    href="styles.css?v=20260902-10"
+    href="styles.css?v=20260902-50"
   >
 
 </head>
@@ -66,9 +71,7 @@
   >
 
     <div class="bg-orb bg-orb-1"></div>
-
     <div class="bg-orb bg-orb-2"></div>
-
     <div class="bg-grid"></div>
 
   </div>
@@ -89,15 +92,18 @@
     <header class="topbar">
 
 
-      <!-- MARCA -->
+      <!-- LOGO + MARCA -->
 
       <div class="brand-area">
 
-        <div
-          class="brand-mark"
-          aria-hidden="true"
-        >
-          <span>KC</span>
+        <div class="brand-logo-wrapper">
+
+          <img
+            src="assets/img/kcequence-logo.png"
+            alt="Logo de KCequence"
+            class="brand-logo"
+          >
+
         </div>
 
 
@@ -122,19 +128,28 @@
       <div class="topbar-actions">
 
 
+        <!-- CONEXIÓN REAL -->
+
         <div
           class="online-indicator"
-          title="Conectado a KCequence"
+          id="connectionIndicator"
+          title="Estado de conexión"
         >
 
-          <span class="online-dot"></span>
+          <span
+            class="online-dot"
+            id="connectionDot"
+          ></span>
 
-          <span>
-            Online
+          <span id="connectionText">
+            Conectando…
           </span>
 
         </div>
 
+
+
+        <!-- JUGADOR -->
 
         <div
           class="player-pill"
@@ -150,10 +165,8 @@
         </div>
 
 
-        <!--
-          Solo aparecerá cuando estemos
-          dentro del lobby.
-        -->
+
+        <!-- CAMBIAR JUGADOR -->
 
         <button
           id="changePlayerBtn"
@@ -186,11 +199,15 @@
       </div>
 
 
-      <div
+      <div 
         class="auth-icon"
         aria-hidden="true"
       >
-        KC
+        <img
+          src="assets/img/kcequence-logo.png"
+          alt=""
+          class="auth-logo"
+        >
       </div>
 
 
@@ -246,8 +263,6 @@
 
 
 
-        <!-- NICKNAME ALEATORIO -->
-
         <button
           id="randomNameBtn"
           class="ghost random-name-button"
@@ -265,8 +280,6 @@
         </button>
 
 
-
-        <!-- ENTRAR -->
 
         <button
           class="primary large-button"
@@ -291,8 +304,7 @@
 
 
       <p class="auth-note">
-        No necesitas crear una cuenta.
-        Tu nickname se guarda únicamente en este dispositivo.
+        No necesitas crear una cuenta para jugar.
       </p>
 
 
@@ -309,8 +321,6 @@
       class="hidden lobby-view"
     >
 
-
-      <!-- ENCABEZADO -->
 
       <div class="section-heading">
 
@@ -335,14 +345,52 @@
 
 
 
-      <!-- MODOS -->
+      <!-- =================================================
+           RECONECTAR PARTIDA
+      ================================================== -->
+
+      <section
+        id="reconnectPanel"
+        class="panel reconnect-panel hidden"
+      >
+
+        <div>
+
+          <div class="eyebrow">
+            PARTIDA EN CURSO
+          </div>
+
+          <h2>
+            Tienes una partida pendiente
+          </h2>
+
+          <p id="reconnectText">
+            Puedes volver a tu partida anterior.
+          </p>
+
+        </div>
+
+
+        <button
+          id="reconnectBtn"
+          class="primary"
+          type="button"
+        >
+          Volver a la partida
+        </button>
+
+      </section>
+
+
+
+      <!-- =================================================
+           MODOS
+      ================================================== -->
 
       <div class="hero-grid">
 
 
-        <!-- =================================================
-             CREAR SALA
-        ================================================== -->
+        <!-- CREAR SALA -->
 
         <article class="panel lobby-card">
 
@@ -415,9 +463,7 @@
 
 
 
-        <!-- =================================================
-             UNIRSE
-        ================================================== -->
+        <!-- UNIRSE -->
 
         <article class="panel lobby-card">
 
@@ -502,9 +548,7 @@
 
 
 
-        <!-- =================================================
-             MATCHMAKING
-        ================================================== -->
+        <!-- MATCHMAKING -->
 
         <article class="panel lobby-card accent-panel">
 
@@ -584,10 +628,127 @@
           </button>
 
 
+          <p
+            id="matchStatus"
+            class="status"
+          ></p>
+
+
         </article>
 
 
       </div>
+
+
+
+      <!-- =================================================
+           ESTADÍSTICAS
+      ================================================== -->
+
+      <section
+        id="statsPanel"
+        class="panel stats-panel"
+      >
+
+
+        <div class="stats-header">
+
+          <div>
+
+            <div class="eyebrow">
+              TU RENDIMIENTO
+            </div>
+
+            <h2>
+              Estadísticas
+            </h2>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="stats-grid">
+
+
+          <div class="stat-card">
+
+            <span class="stat-label">
+              Partidas
+            </span>
+
+            <strong id="statGames">
+              0
+            </strong>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <span class="stat-label">
+              Ganadas
+            </span>
+
+            <strong id="statWins">
+              0
+            </strong>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <span class="stat-label">
+              Victorias
+            </span>
+
+            <strong id="statWinRate">
+              0%
+            </strong>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <span class="stat-label">
+              Racha
+            </span>
+
+            <strong id="statStreak">
+              0
+            </strong>
+
+          </div>
+
+
+        </div>
+
+
+
+        <div class="recent-games">
+
+          <div class="eyebrow">
+            ÚLTIMAS PARTIDAS
+          </div>
+
+          <div
+            id="recentGamesList"
+            class="recent-games-list"
+          >
+
+            <p class="empty-history">
+              Todavía no hay partidas registradas.
+            </p>
+
+          </div>
+
+        </div>
+
+
+      </section>
 
 
 
@@ -620,8 +781,6 @@
     >
 
 
-      <!-- INFORMACIÓN SALA -->
-
       <div class="room-head panel">
 
 
@@ -653,12 +812,8 @@
 
 
 
-        <!-- ACCIONES SALA -->
-
         <div class="room-actions">
 
-
-          <!-- NUEVA MEJORA -->
 
           <button
             id="copyRoomCodeBtn"
@@ -667,6 +822,17 @@
             title="Copiar código de sala"
           >
             Copiar código
+          </button>
+
+
+
+          <button
+            id="shareRoomBtn"
+            class="ghost share-room-btn"
+            type="button"
+            title="Compartir invitación"
+          >
+            ↗ Compartir
           </button>
 
 
@@ -737,8 +903,6 @@
 
 
 
-      <!-- ESTADO SALA -->
-
       <div
         class="status-box"
         aria-live="polite"
@@ -767,26 +931,47 @@
 
 
       <!-- =================================================
-           INFORMACIÓN PARTIDA
+           INFORMACIÓN PARTIDA / TURNO
       ================================================== -->
 
-      <div class="game-top panel">
+      <div
+        class="game-top panel"
+        id="gameTurnPanel"
+      >
 
 
         <div class="game-state">
+
 
           <div class="eyebrow">
             PARTIDA EN CURSO
           </div>
 
+
+          <div
+            class="turn-status-badge"
+            id="turnStatusBadge"
+          >
+            TURNO
+          </div>
+
+
           <h2 id="turnLabel">
             Turno
           </h2>
+
+
+          <p
+            id="turnSubLabel"
+            class="turn-sub-label"
+          ></p>
+
 
           <p
             id="scoreLabel"
             class="score-label"
           ></p>
+
 
         </div>
 
@@ -909,8 +1094,6 @@
 
 
 
-      <!-- ESTADO PARTIDA -->
-
       <div
         class="status-box game-status-box"
         aria-live="polite"
@@ -951,11 +1134,12 @@
 
 
 
-    <div class="modal-card">
+    <div class="modal-card result-modal-card">
 
 
       <div
         class="result-icon"
+        id="resultIcon"
         aria-hidden="true"
       >
         🏆
@@ -972,17 +1156,175 @@
       </h2>
 
 
-      <p id="modalText"></p>
+      <p
+        id="modalText"
+        class="result-main-text"
+      ></p>
 
 
 
-      <button
-        id="modalOk"
-        class="primary large-button"
-        type="button"
+      <div
+        id="resultStats"
+        class="result-stats"
       >
-        Volver al lobby
-      </button>
+
+
+        <div class="result-stat">
+
+          <span>
+            Secuencias
+          </span>
+
+          <strong id="resultSequences">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="result-stat">
+
+          <span>
+            Movimientos
+          </span>
+
+          <strong id="resultMoves">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="result-stat">
+
+          <span>
+            Jugadores
+          </span>
+
+          <strong id="resultPlayers">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="result-stat">
+
+          <span>
+            Duración
+          </span>
+
+          <strong id="resultDuration">
+            00:00
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="result-actions">
+
+
+        <button
+          id="modalOk"
+          class="ghost large-button"
+          type="button"
+        >
+          Volver al lobby
+        </button>
+
+
+        <button
+          id="rematchBtn"
+          class="primary large-button"
+          type="button"
+        >
+          ↻ Revancha
+        </button>
+
+
+      </div>
+
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =====================================================
+       CONFIRMACIÓN SALIR DE PARTIDA
+  ====================================================== -->
+
+  <div
+    id="leaveConfirmModal"
+    class="modal hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="leaveConfirmTitle"
+  >
+
+
+    <div
+      class="modal-backdrop"
+      aria-hidden="true"
+    ></div>
+
+
+
+    <div class="modal-card confirm-modal-card">
+
+
+      <div
+        class="confirm-icon"
+        aria-hidden="true"
+      >
+        ⚠
+      </div>
+
+
+      <div class="eyebrow">
+        ABANDONAR PARTIDA
+      </div>
+
+
+      <h2 id="leaveConfirmTitle">
+        ¿Salir de la partida?
+      </h2>
+
+
+      <p>
+        Si abandonas, la partida continuará
+        sin ti y los demás jugadores podrán seguir jugando.
+      </p>
+
+
+
+      <div class="confirm-actions">
+
+
+        <button
+          id="cancelLeaveGameBtn"
+          class="ghost"
+          type="button"
+        >
+          Cancelar
+        </button>
+
+
+        <button
+          id="confirmLeaveGameBtn"
+          class="danger-button"
+          type="button"
+        >
+          Salir
+        </button>
+
+
+      </div>
 
 
     </div>
@@ -995,7 +1337,10 @@
        JAVASCRIPT
   ====================================================== -->
 
-  <script type="module" src="app.js?v=20260902-41"></script>
+  <script
+    type="module"
+    src="app.js?v=20260902-50"
+  ></script>
 
 
 </body>
