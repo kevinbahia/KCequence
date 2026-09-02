@@ -111,11 +111,6 @@ function showView(id) {
   });
 
 
-  /*
-    El botón "Cambiar jugador"
-    solamente aparece en el lobby.
-  */
-
   const changePlayerBtn =
     $('changePlayerBtn');
 
@@ -198,10 +193,7 @@ function updatePlayerPill(name) {
 
   pill.innerHTML = `
     <span class="player-status-dot"></span>
-
-    <span>
-      ${escapeHtml(label)}
-    </span>
+    <span>${escapeHtml(label)}</span>
   `;
 
 }
@@ -231,11 +223,9 @@ function randomNickname() {
     'Mystic',
     'Cyber',
     'Ultra',
-    'Super',
     'Alpha',
     'Omega'
   ];
-
 
   const second = [
     'Fox',
@@ -260,12 +250,10 @@ function randomNickname() {
     'Gamer'
   ];
 
-
   const number =
     Math.floor(
       Math.random() * 90
     ) + 10;
-
 
   const a =
     first[
@@ -275,7 +263,6 @@ function randomNickname() {
       )
     ];
 
-
   const b =
     second[
       Math.floor(
@@ -283,7 +270,6 @@ function randomNickname() {
         second.length
       )
     ];
-
 
   return `${a}${b}${number}`
     .slice(0, 18);
@@ -298,34 +284,26 @@ function randomNickname() {
 const randomNameBtn =
   $('randomNameBtn');
 
-
 if (randomNameBtn) {
 
   randomNameBtn.addEventListener(
     'click',
     () => {
 
-      const nickname =
-        randomNickname();
-
-
       const input =
         $('nameInput');
-
 
       if (!input) {
         return;
       }
 
+      const nickname =
+        randomNickname();
 
       input.value =
         nickname;
 
-
-      input.setCustomValidity(
-        ''
-      );
-
+      input.setCustomValidity('');
 
       input.focus();
 
@@ -336,23 +314,15 @@ if (randomNameBtn) {
 
 
 /* =========================================================
-   GENERAR CÓDIGO DE SALA
+   CÓDIGO DE SALA
 ========================================================= */
 
 function randomCode() {
 
-  /*
-    Quitamos caracteres que pueden
-    confundirse visualmente:
-    I, O, 0 y 1.
-  */
-
   const chars =
     'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-
   let code = '';
-
 
   for (
     let i = 0;
@@ -370,20 +340,16 @@ function randomCode() {
 
   }
 
-
   return code;
 
 }
 
 
 /* =========================================================
-   CARTAS
+   FUNCIONES DE CARTAS
 ========================================================= */
 
-function cardId(
-  suit,
-  rank
-) {
+function cardId(suit, rank) {
 
   return `${rank}${suit}`;
 
@@ -393,19 +359,14 @@ function cardId(
 function cardText(id) {
 
   if (id === FREE) {
-
     return '★';
-
   }
-
 
   const suit =
     id.slice(-1);
 
-
   const rank =
     id.slice(0, -1);
-
 
   return `${rank}${SUIT_SYMBOL[suit]}`;
 
@@ -418,11 +379,8 @@ function isRedSuit(id) {
     !id ||
     id === FREE
   ) {
-
     return false;
-
   }
-
 
   return [
     'H',
@@ -448,18 +406,12 @@ function isJack(id) {
 function jackType(id) {
 
   if (!isJack(id)) {
-
     return null;
-
   }
 
-
   /*
-    J♥ y J♦
-    = Jota libre
-
-    J♣ y J♠
-    = quitar ficha rival
+    J♥ y J♦ = Jota libre.
+    J♣ y J♠ = quitar ficha.
   */
 
   return [
@@ -475,7 +427,7 @@ function jackType(id) {
 
 
 /* =========================================================
-   MEZCLAR CARTAS
+   MEZCLAR
 ========================================================= */
 
 function shuffle(array) {
@@ -483,13 +435,9 @@ function shuffle(array) {
   const copy =
     [...array];
 
-
   for (
-    let i =
-      copy.length - 1;
-
+    let i = copy.length - 1;
     i > 0;
-
     i--
   ) {
 
@@ -498,7 +446,6 @@ function shuffle(array) {
         Math.random() *
         (i + 1)
       );
-
 
     [
       copy[i],
@@ -509,7 +456,6 @@ function shuffle(array) {
     ];
 
   }
-
 
   return copy;
 
@@ -523,12 +469,6 @@ function shuffle(array) {
 function makeDeck() {
 
   const deck = [];
-
-
-  /*
-    KCequence utiliza
-    dos barajas completas.
-  */
 
   for (
     let x = 0;
@@ -559,7 +499,6 @@ function makeDeck() {
 
   }
 
-
   return shuffle(deck);
 
 }
@@ -573,10 +512,9 @@ function makeBoard() {
 
   const cards = [];
 
-
   /*
-    Dos copias de cada carta,
-    excepto las Jotas.
+    Dos copias de cada carta
+    excepto Jotas.
   */
 
   for (
@@ -614,27 +552,18 @@ function makeBoard() {
 
   }
 
-
   const mixed =
     shuffle(cards);
 
-
   const board = [];
 
-
   let cardIndex = 0;
-
 
   for (
     let i = 0;
     i < 100;
     i++
   ) {
-
-    /*
-      Las cuatro esquinas
-      son espacios libres.
-    */
 
     if (
       i === 0 ||
@@ -643,9 +572,7 @@ function makeBoard() {
       i === 99
     ) {
 
-      board.push(
-        FREE
-      );
+      board.push(FREE);
 
     } else {
 
@@ -659,14 +586,13 @@ function makeBoard() {
 
   }
 
-
   return board;
 
 }
 
 
 /* =========================================================
-   JUGADORES / ORDEN
+   JUGADORES
 ========================================================= */
 
 function getPlayerIds(room) {
@@ -706,10 +632,7 @@ function getTurnOrder(room) {
 
   }
 
-
-  return getPlayerIds(
-    room
-  );
+  return getPlayerIds(room);
 
 }
 
@@ -722,7 +645,6 @@ function getActivePlayerIds(room) {
         room.players || {}
       )
     );
-
 
   return getTurnOrder(room)
     .filter(
@@ -755,7 +677,6 @@ function playerColor(
   const order =
     getTurnOrder(room);
 
-
   const colors = [
     'red',
     'blue',
@@ -763,10 +684,8 @@ function playerColor(
     'gold'
   ];
 
-
   const index =
     order.indexOf(uid);
-
 
   return (
     colors[index] ||
@@ -797,7 +716,6 @@ function getNextActivePlayer(
   const order =
     getTurnOrder(room);
 
-
   const active =
     new Set(
       Object.keys(
@@ -805,19 +723,14 @@ function getNextActivePlayer(
       )
     );
 
-
   if (!order.length) {
-
     return null;
-
   }
-
 
   const startIndex =
     order.indexOf(
       currentUid
     );
-
 
   for (
     let step = 1;
@@ -835,10 +748,8 @@ function getNextActivePlayer(
       ) %
       order.length;
 
-
     const candidate =
       order[index];
-
 
     if (
       active.has(
@@ -851,7 +762,6 @@ function getNextActivePlayer(
     }
 
   }
-
 
   return null;
 
@@ -868,11 +778,8 @@ async function ensureProfile() {
     !me ||
     !displayName
   ) {
-
     return;
-
   }
-
 
   await set(
 
@@ -909,15 +816,13 @@ async function bootstrap() {
   } catch (error) {
 
     console.error(
-      'Error Firebase:',
+      'ERROR FIREBASE:',
       error
     );
-
 
     updatePlayerPill(
       'Error de conexión'
     );
-
 
     status(
       'lobbyStatus',
@@ -930,7 +835,7 @@ async function bootstrap() {
 
 
 /* =========================================================
-   USUARIO AUTENTICADO
+   USUARIO FIREBASE
 ========================================================= */
 
 onAuthStateChanged(
@@ -941,13 +846,9 @@ onAuthStateChanged(
 
     me = user;
 
-
     if (!user) {
-
       return;
-
     }
-
 
     updatePlayerPill(
       displayName
@@ -955,14 +856,22 @@ onAuthStateChanged(
         : 'Invitado conectado'
     );
 
-
     startMatchListener();
-
 
     if (displayName) {
 
-      await ensureProfile();
+      try {
 
+        await ensureProfile();
+
+      } catch (error) {
+
+        console.error(
+          'ERROR PERFIL:',
+          error
+        );
+
+      }
 
       showView(
         'lobbyView'
@@ -982,12 +891,11 @@ onAuthStateChanged(
 
 
 /* =========================================================
-   REGISTRO DE NOMBRE / NICKNAME
+   FORMULARIO NOMBRE / NICKNAME
 ========================================================= */
 
 const nameForm =
   $('nameForm');
-
 
 if (nameForm) {
 
@@ -999,27 +907,19 @@ if (nameForm) {
 
       event.preventDefault();
 
-
       const input =
         $('nameInput');
 
-
       if (!input) {
-
         return;
-
       }
-
 
       const name =
         normalizeName(
           input.value
         );
 
-
-      /*
-        Validación del nickname.
-      */
+      input.setCustomValidity('');
 
       if (
         name.length < 2
@@ -1029,49 +929,42 @@ if (nameForm) {
           'Escribe al menos 2 caracteres.'
         );
 
-
         input.reportValidity();
 
-
         input.focus();
-
 
         return;
 
       }
 
-
-      input.setCustomValidity(
-        ''
-      );
-
-
-      /*
-        Guardar nombre.
-      */
-
       displayName =
         name;
-
 
       localStorage.setItem(
         'kc_name',
         name
       );
 
-
-      /*
-        Actualizar encabezado.
-      */
-
       updatePlayerPill(
         name
       );
 
-
       /*
-        Guardar perfil Firebase.
+        Entramos al lobby primero.
+
+        Así, incluso si Firebase tarda
+        en guardar el perfil, el botón
+        sí responde.
       */
+
+      status(
+        'lobbyStatus',
+        ''
+      );
+
+      showView(
+        'lobbyView'
+      );
 
       try {
 
@@ -1080,30 +973,16 @@ if (nameForm) {
       } catch (error) {
 
         console.error(
-          'No se pudo actualizar el perfil:',
+          'No se pudo guardar el perfil:',
           error
         );
 
+        status(
+          'lobbyStatus',
+          'Entraste al lobby, pero hubo un problema sincronizando tu perfil.'
+        );
+
       }
-
-
-      /*
-        Limpiar mensajes anteriores.
-      */
-
-      status(
-        'lobbyStatus',
-        ''
-      );
-
-
-      /*
-        Entrar al lobby.
-      */
-
-      showView(
-        'lobbyView'
-      );
 
     }
 
@@ -1113,12 +992,11 @@ if (nameForm) {
 
 
 /* =========================================================
-   LIMPIAR VALIDACIÓN AL ESCRIBIR
+   LIMPIAR VALIDACIÓN DEL NOMBRE
 ========================================================= */
 
 const nameInput =
   $('nameInput');
-
 
 if (nameInput) {
 
@@ -1126,9 +1004,7 @@ if (nameInput) {
     'input',
     () => {
 
-      nameInput.setCustomValidity(
-        ''
-      );
+      nameInput.setCustomValidity('');
 
     }
   );
@@ -1137,12 +1013,11 @@ if (nameInput) {
 
 
 /* =========================================================
-   INPUT DEL CÓDIGO DE SALA
+   INPUT CÓDIGO DE SALA
 ========================================================= */
 
 const roomCodeInput =
   $('roomCodeInput');
-
 
 if (roomCodeInput) {
 
@@ -1154,14 +1029,11 @@ if (roomCodeInput) {
 
       event.target.value =
         event.target.value
-
           .toUpperCase()
-
           .replace(
             /[^A-Z0-9]/g,
             ''
           )
-
           .slice(
             0,
             6
@@ -1171,11 +1043,6 @@ if (roomCodeInput) {
 
   );
 
-
-  /*
-    Permitir presionar ENTER
-    para entrar a una sala.
-  */
 
   roomCodeInput.addEventListener(
 
@@ -1190,7 +1057,6 @@ if (roomCodeInput) {
 
         event.preventDefault();
 
-
         $('joinRoomBtn')
           ?.click();
 
@@ -1202,1209 +1068,1433 @@ if (roomCodeInput) {
 
 }
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
-
-import {
-  getDatabase,
-  ref,
-  set,
-  get,
-  remove,
-  onValue,
-  runTransaction,
-  onDisconnect
-} from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
-
-import { firebaseConfig } from './firebase-config.js';
-
 
 /* =========================================================
-   FIREBASE
+   CREAR SALA PRIVADA
 ========================================================= */
 
-const $ = id => document.getElementById(id);
+const createRoomBtn =
+  $('createRoomBtn');
 
-const views = [
-  'authView',
-  'lobbyView',
-  'roomView',
-  'gameView'
-];
+if (createRoomBtn) {
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
+  createRoomBtn.addEventListener(
 
-
-/* =========================================================
-   ESTADO LOCAL
-========================================================= */
-
-let me = null;
-
-let displayName =
-  localStorage.getItem('kc_name') || '';
-
-let currentRoomCode = null;
-let currentRoom = null;
-
-let roomUnsub = null;
-let matchUnsub = null;
-
-let selectedCardIndex = null;
-let moveInFlight = false;
-
-
-/* =========================================================
-   CARTAS
-========================================================= */
-
-const SUITS = ['H', 'D', 'C', 'S'];
-
-const SUIT_SYMBOL = {
-  H: '♥',
-  D: '♦',
-  C: '♣',
-  S: '♠'
-};
-
-const RANKS = [
-  'A',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  'J',
-  'Q',
-  'K'
-];
-
-const FREE = 'FREE';
-
-
-/* =========================================================
-   UTILIDADES
-========================================================= */
-
-function showView(id) {
-
-  views.forEach(view => {
-
-    const element = $(view);
-
-    if (!element) {
-      return;
-    }
-
-    element.classList.toggle(
-      'hidden',
-      view !== id
-    );
-
-  });
-
-
-  /*
-    El botón "Cambiar jugador"
-    solamente aparece en el lobby.
-  */
-
-  const changePlayerBtn =
-    $('changePlayerBtn');
-
-  if (changePlayerBtn) {
-
-    changePlayerBtn.classList.toggle(
-      'hidden',
-      id !== 'lobbyView'
-    );
-
-  }
-
-}
-
-
-function status(elementId, message) {
-
-  const element =
-    $(elementId);
-
-  if (element) {
-
-    element.textContent =
-      message || '';
-
-  }
-
-}
-
-
-/* =========================================================
-   NORMALIZAR NOMBRE
-========================================================= */
-
-function normalizeName(value) {
-
-  return String(value || '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, 18);
-
-}
-
-
-/* =========================================================
-   ESCAPAR HTML
-========================================================= */
-
-function escapeHtml(str = '') {
-
-  return String(str).replace(
-    /[&<>'"]/g,
-    char => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    })[char]
-  );
-
-}
-
-
-/* =========================================================
-   MOSTRAR JUGADOR EN HEADER
-========================================================= */
-
-function updatePlayerPill(name) {
-
-  const pill =
-    $('playerPill');
-
-  if (!pill) {
-    return;
-  }
-
-  const label =
-    name || 'Invitado conectado';
-
-  pill.innerHTML = `
-    <span class="player-status-dot"></span>
-
-    <span>
-      ${escapeHtml(label)}
-    </span>
-  `;
-
-}
-
-
-/* =========================================================
-   NICKNAME ALEATORIO
-========================================================= */
-
-function randomNickname() {
-
-  const first = [
-    'Nova',
-    'Shadow',
-    'Turbo',
-    'Pixel',
-    'Neo',
-    'Night',
-    'Fire',
-    'Frost',
-    'Royal',
-    'Dark',
-    'Lucky',
-    'Rapid',
-    'Golden',
-    'Epic',
-    'Mystic',
-    'Cyber',
-    'Ultra',
-    'Super',
-    'Alpha',
-    'Omega'
-  ];
-
-
-  const second = [
-    'Fox',
-    'Wolf',
-    'Ace',
-    'King',
-    'Ninja',
-    'Player',
-    'Knight',
-    'Tiger',
-    'Storm',
-    'Dragon',
-    'Ghost',
-    'Hunter',
-    'Raven',
-    'Falcon',
-    'Legend',
-    'Shark',
-    'Lion',
-    'Eagle',
-    'Master',
-    'Gamer'
-  ];
-
-
-  const number =
-    Math.floor(
-      Math.random() * 90
-    ) + 10;
-
-
-  const a =
-    first[
-      Math.floor(
-        Math.random() *
-        first.length
-      )
-    ];
-
-
-  const b =
-    second[
-      Math.floor(
-        Math.random() *
-        second.length
-      )
-    ];
-
-
-  return `${a}${b}${number}`
-    .slice(0, 18);
-
-}
-
-
-/* =========================================================
-   BOTÓN NICKNAME ALEATORIO
-========================================================= */
-
-const randomNameBtn =
-  $('randomNameBtn');
-
-
-if (randomNameBtn) {
-
-  randomNameBtn.addEventListener(
     'click',
-    () => {
 
-      const nickname =
-        randomNickname();
+    async () => {
 
-
-      const input =
-        $('nameInput');
-
-
-      if (!input) {
-        return;
-      }
-
-
-      input.value =
-        nickname;
-
-
-      input.setCustomValidity(
-        ''
-      );
-
-
-      input.focus();
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   GENERAR CÓDIGO DE SALA
-========================================================= */
-
-function randomCode() {
-
-  /*
-    Quitamos caracteres que pueden
-    confundirse visualmente:
-    I, O, 0 y 1.
-  */
-
-  const chars =
-    'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-
-  let code = '';
-
-
-  for (
-    let i = 0;
-    i < 6;
-    i++
-  ) {
-
-    code +=
-      chars[
-        Math.floor(
-          Math.random() *
-          chars.length
-        )
-      ];
-
-  }
-
-
-  return code;
-
-}
-
-
-/* =========================================================
-   CARTAS
-========================================================= */
-
-function cardId(
-  suit,
-  rank
-) {
-
-  return `${rank}${suit}`;
-
-}
-
-
-function cardText(id) {
-
-  if (id === FREE) {
-
-    return '★';
-
-  }
-
-
-  const suit =
-    id.slice(-1);
-
-
-  const rank =
-    id.slice(0, -1);
-
-
-  return `${rank}${SUIT_SYMBOL[suit]}`;
-
-}
-
-
-function isRedSuit(id) {
-
-  if (
-    !id ||
-    id === FREE
-  ) {
-
-    return false;
-
-  }
-
-
-  return [
-    'H',
-    'D'
-  ].includes(
-    id.slice(-1)
-  );
-
-}
-
-
-function isJack(id) {
-
-  return (
-    !!id &&
-    id !== FREE &&
-    id.startsWith('J')
-  );
-
-}
-
-
-function jackType(id) {
-
-  if (!isJack(id)) {
-
-    return null;
-
-  }
-
-
-  /*
-    J♥ y J♦
-    = Jota libre
-
-    J♣ y J♠
-    = quitar ficha rival
-  */
-
-  return [
-    'H',
-    'D'
-  ].includes(
-    id.slice(-1)
-  )
-    ? 'wild'
-    : 'remove';
-
-}
-
-
-/* =========================================================
-   MEZCLAR CARTAS
-========================================================= */
-
-function shuffle(array) {
-
-  const copy =
-    [...array];
-
-
-  for (
-    let i =
-      copy.length - 1;
-
-    i > 0;
-
-    i--
-  ) {
-
-    const j =
-      Math.floor(
-        Math.random() *
-        (i + 1)
-      );
-
-
-    [
-      copy[i],
-      copy[j]
-    ] = [
-      copy[j],
-      copy[i]
-    ];
-
-  }
-
-
-  return copy;
-
-}
-
-
-/* =========================================================
-   CREAR BARAJA
-========================================================= */
-
-function makeDeck() {
-
-  const deck = [];
-
-
-  /*
-    KCequence utiliza
-    dos barajas completas.
-  */
-
-  for (
-    let x = 0;
-    x < 2;
-    x++
-  ) {
-
-    for (
-      const suit
-      of SUITS
-    ) {
-
-      for (
-        const rank
-        of RANKS
+      if (
+        !me ||
+        !displayName
       ) {
 
-        deck.push(
-          cardId(
-            suit,
-            rank
-          )
+        status(
+          'lobbyStatus',
+          'Primero selecciona un nickname.'
+        );
+
+        return;
+
+      }
+
+      status(
+        'lobbyStatus',
+        'Creando sala…'
+      );
+
+      try {
+
+        let code = null;
+
+        for (
+          let i = 0;
+          i < 10;
+          i++
+        ) {
+
+          const possibleCode =
+            randomCode();
+
+          const snap =
+            await get(
+              ref(
+                db,
+                `rooms/${possibleCode}`
+              )
+            );
+
+          if (
+            !snap.exists()
+          ) {
+
+            code =
+              possibleCode;
+
+            break;
+
+          }
+
+        }
+
+        if (!code) {
+
+          status(
+            'lobbyStatus',
+            'No se pudo generar la sala. Intenta otra vez.'
+          );
+
+          return;
+
+        }
+
+        const now =
+          Date.now();
+
+        const room = {
+
+          code,
+
+          host:
+            me.uid,
+
+          status:
+            'waiting',
+
+          maxPlayers:
+            4,
+
+          matchType:
+            'private',
+
+          createdAt:
+            now,
+
+          players: {
+
+            [me.uid]: {
+
+              name:
+                displayName,
+
+              joinedAt:
+                now
+
+            }
+
+          }
+
+        };
+
+        await set(
+
+          ref(
+            db,
+            `rooms/${code}`
+          ),
+
+          room
+
+        );
+
+        await enterRoom(
+          code
+        );
+
+      } catch (error) {
+
+        console.error(
+          'ERROR CREANDO SALA:',
+          error
+        );
+
+        status(
+          'lobbyStatus',
+          'No se pudo crear la sala.'
         );
 
       }
 
     }
 
-  }
-
-
-  return shuffle(deck);
+  );
 
 }
 
 
 /* =========================================================
-   CREAR TABLERO
+   UNIRSE A SALA
 ========================================================= */
 
-function makeBoard() {
+const joinRoomBtn =
+  $('joinRoomBtn');
 
-  const cards = [];
+if (joinRoomBtn) {
 
+  joinRoomBtn.addEventListener(
 
-  /*
-    Dos copias de cada carta,
-    excepto las Jotas.
-  */
+    'click',
 
-  for (
-    let x = 0;
-    x < 2;
-    x++
-  ) {
+    async () => {
 
-    for (
-      const suit
-      of SUITS
-    ) {
-
-      for (
-        const rank
-        of RANKS
+      if (
+        !me ||
+        !displayName
       ) {
 
+        status(
+          'lobbyStatus',
+          'Primero selecciona un nickname.'
+        );
+
+        return;
+
+      }
+
+      const input =
+        $('roomCodeInput');
+
+      if (!input) {
+        return;
+      }
+
+      const code =
+        input.value
+          .trim()
+          .toUpperCase();
+
+      if (
+        code.length !== 6
+      ) {
+
+        status(
+          'lobbyStatus',
+          'Escribe un código de 6 caracteres.'
+        );
+
+        return;
+
+      }
+
+      status(
+        'lobbyStatus',
+        'Entrando a la sala…'
+      );
+
+      try {
+
+        const roomRef =
+          ref(
+            db,
+            `rooms/${code}`
+          );
+
+        const roomSnap =
+          await get(
+            roomRef
+          );
+
         if (
-          rank !== 'J'
+          !roomSnap.exists()
         ) {
 
-          cards.push(
-            cardId(
-              suit,
-              rank
+          status(
+            'lobbyStatus',
+            'No existe esa sala.'
+          );
+
+          return;
+
+        }
+
+        const room =
+          roomSnap.val();
+
+        if (
+          room.status !==
+          'waiting'
+        ) {
+
+          status(
+            'lobbyStatus',
+            'La partida ya comenzó.'
+          );
+
+          return;
+
+        }
+
+        const players =
+          room.players || {};
+
+        /*
+          Ya pertenecemos a la sala.
+        */
+
+        if (
+          players[me.uid]
+        ) {
+
+          await enterRoom(
+            code
+          );
+
+          return;
+
+        }
+
+        if (
+          Object.keys(
+            players
+          ).length >=
+          (room.maxPlayers || 4)
+        ) {
+
+          status(
+            'lobbyStatus',
+            'La sala está llena.'
+          );
+
+          return;
+
+        }
+
+        await set(
+
+          ref(
+            db,
+            `rooms/${code}/players/${me.uid}`
+          ),
+
+          {
+            name:
+              displayName,
+
+            joinedAt:
+              Date.now()
+          }
+
+        );
+
+        const checkSnap =
+          await get(
+            roomRef
+          );
+
+        if (
+          !checkSnap.exists()
+        ) {
+
+          status(
+            'lobbyStatus',
+            'La sala fue cerrada.'
+          );
+
+          return;
+
+        }
+
+        const updatedRoom =
+          checkSnap.val();
+
+        const updatedPlayers =
+          updatedRoom.players ||
+          {};
+
+        const maxPlayers =
+          updatedRoom.maxPlayers ||
+          4;
+
+        const ids =
+          Object.entries(
+            updatedPlayers
+          )
+
+            .sort(
+              ([, a], [, b]) =>
+                (a.joinedAt || 0) -
+                (b.joinedAt || 0)
             )
+
+            .map(
+              ([uid]) => uid
+            );
+
+        /*
+          Evitar que entren más jugadores
+          si dos personas se unen exactamente
+          al mismo tiempo.
+        */
+
+        if (
+          ids.length >
+            maxPlayers &&
+          !ids
+            .slice(
+              0,
+              maxPlayers
+            )
+            .includes(
+              me.uid
+            )
+        ) {
+
+          await remove(
+            ref(
+              db,
+              `rooms/${code}/players/${me.uid}`
+            )
+          );
+
+          status(
+            'lobbyStatus',
+            'La sala se llenó justo antes de que entraras.'
+          );
+
+          return;
+
+        }
+
+        await enterRoom(
+          code
+        );
+
+      } catch (error) {
+
+        console.error(
+          'ERROR AL ENTRAR:',
+          error
+        );
+
+        status(
+          'lobbyStatus',
+          'Error al entrar a la sala.'
+        );
+
+      }
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   ESCUCHAR MATCHMAKING PERSONAL
+========================================================= */
+
+function startMatchListener() {
+
+  if (!me) {
+    return;
+  }
+
+  if (matchUnsub) {
+
+    matchUnsub();
+
+    matchUnsub =
+      null;
+
+  }
+
+  const myMatchRef =
+    ref(
+      db,
+      `matchesByUser/${me.uid}`
+    );
+
+  matchUnsub =
+    onValue(
+
+      myMatchRef,
+
+      async snap => {
+
+        if (
+          !snap.exists() ||
+          currentRoomCode
+        ) {
+          return;
+        }
+
+        const match =
+          snap.val();
+
+        await remove(
+          myMatchRef
+        );
+
+        if (
+          !match?.roomCode
+        ) {
+          return;
+        }
+
+        const roomSnap =
+          await get(
+            ref(
+              db,
+              `rooms/${match.roomCode}`
+            )
+          );
+
+        if (
+          !roomSnap.exists()
+        ) {
+          return;
+        }
+
+        await enterRoom(
+          match.roomCode
+        );
+
+      }
+
+    );
+
+}
+
+
+/* =========================================================
+   ENTRAR Y ESCUCHAR SALA
+========================================================= */
+
+async function enterRoom(code) {
+
+  await cancelMatch();
+
+  currentRoomCode =
+    code;
+
+  currentRoom =
+    null;
+
+  selectedCardIndex =
+    null;
+
+  moveInFlight =
+    false;
+
+  showView(
+    'roomView'
+  );
+
+  const roomTitle =
+    $('roomTitle');
+
+  if (roomTitle) {
+
+    roomTitle.textContent =
+      code;
+
+  }
+
+  const playerRef =
+    ref(
+      db,
+      `rooms/${code}/players/${me.uid}`
+    );
+
+  try {
+
+    await onDisconnect(
+      playerRef
+    ).remove();
+
+  } catch (error) {
+
+    console.warn(
+      'No se pudo registrar onDisconnect:',
+      error
+    );
+
+  }
+
+  if (roomUnsub) {
+
+    roomUnsub();
+
+    roomUnsub =
+      null;
+
+  }
+
+  roomUnsub =
+    onValue(
+
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+
+      snap => {
+
+        if (
+          !snap.exists()
+        ) {
+
+          leaveToLobby(
+            'La sala fue cerrada.'
+          );
+
+          return;
+
+        }
+
+        currentRoom =
+          snap.val();
+
+        renderRoom(
+          currentRoom
+        );
+
+        if (
+          currentRoom.status ===
+          'playing'
+        ) {
+
+          reconcileActiveGame(
+            code
+          );
+
+          renderGame(
+            currentRoom
+          );
+
+        }
+
+        if (
+          currentRoom.status ===
+          'finished'
+        ) {
+
+          renderGame(
+            currentRoom
+          );
+
+          showResult(
+            currentRoom
           );
 
         }
 
       }
 
-    }
-
-  }
-
-
-  const mixed =
-    shuffle(cards);
-
-
-  const board = [];
-
-
-  let cardIndex = 0;
-
-
-  for (
-    let i = 0;
-    i < 100;
-    i++
-  ) {
-
-    /*
-      Las cuatro esquinas
-      son espacios libres.
-    */
-
-    if (
-      i === 0 ||
-      i === 9 ||
-      i === 90 ||
-      i === 99
-    ) {
-
-      board.push(
-        FREE
-      );
-
-    } else {
-
-      board.push(
-        mixed[
-          cardIndex++
-        ]
-      );
-
-    }
-
-  }
-
-
-  return board;
+    );
 
 }
 
 
 /* =========================================================
-   JUGADORES / ORDEN
+   RECONCILIAR DESCONEXIONES
 ========================================================= */
 
-function getPlayerIds(room) {
+async function reconcileActiveGame(code) {
 
-  return Object.entries(
-    room.players || {}
-  )
+  if (!me) {
+    return;
+  }
 
-    .sort(
-      ([, a], [, b]) => {
+  try {
 
-        return (
-          (a.joinedAt || 0) -
-          (b.joinedAt || 0)
-        );
+    await runTransaction(
+
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+
+      room => {
+
+        if (
+          !room ||
+          room.status !==
+            'playing' ||
+          !room.game ||
+          room.game.winner
+        ) {
+          return;
+        }
+
+        const active =
+          getActivePlayerIds(
+            room
+          );
+
+        if (
+          !active.length
+        ) {
+          return;
+        }
+
+        if (
+          active.length === 1
+        ) {
+
+          room.game.winner =
+            active[0];
+
+          room.game.finishReason =
+            'disconnect';
+
+          room.game.updatedAt =
+            Date.now();
+
+          room.status =
+            'finished';
+
+          return room;
+
+        }
+
+        if (
+          !active.includes(
+            room.game.turn
+          )
+        ) {
+
+          const next =
+            getNextActivePlayer(
+              room,
+              room.game.turn
+            );
+
+          if (next) {
+
+            room.game.turn =
+              next;
+
+            room.game.updatedAt =
+              Date.now();
+
+            return room;
+
+          }
+
+        }
+
+        return;
 
       }
-    )
 
-    .map(
-      ([uid]) => uid
     );
 
-}
+  } catch (error) {
 
-
-function getTurnOrder(room) {
-
-  if (
-    Array.isArray(
-      room.game?.turnOrder
-    ) &&
-    room.game.turnOrder.length
-  ) {
-
-    return room.game.turnOrder;
+    console.error(
+      'ERROR RECONCILIANDO PARTIDA:',
+      error
+    );
 
   }
-
-
-  return getPlayerIds(
-    room
-  );
-
-}
-
-
-function getActivePlayerIds(room) {
-
-  const active =
-    new Set(
-      Object.keys(
-        room.players || {}
-      )
-    );
-
-
-  return getTurnOrder(room)
-    .filter(
-      uid =>
-        active.has(uid)
-    );
-
-}
-
-
-function playerName(
-  room,
-  uid
-) {
-
-  return (
-    room.players?.[uid]?.name ||
-    room.game?.playerNames?.[uid] ||
-    'Jugador'
-  );
-
-}
-
-
-function playerColor(
-  room,
-  uid
-) {
-
-  const order =
-    getTurnOrder(room);
-
-
-  const colors = [
-    'red',
-    'blue',
-    'green',
-    'gold'
-  ];
-
-
-  const index =
-    order.indexOf(uid);
-
-
-  return (
-    colors[index] ||
-    'blue'
-  );
-
-}
-
-
-function playerDot(
-  room,
-  uid
-) {
-
-  return `dot-${playerColor(
-    room,
-    uid
-  )}`;
-
-}
-
-
-function getNextActivePlayer(
-  room,
-  currentUid
-) {
-
-  const order =
-    getTurnOrder(room);
-
-
-  const active =
-    new Set(
-      Object.keys(
-        room.players || {}
-      )
-    );
-
-
-  if (!order.length) {
-
-    return null;
-
-  }
-
-
-  const startIndex =
-    order.indexOf(
-      currentUid
-    );
-
-
-  for (
-    let step = 1;
-    step <= order.length;
-    step++
-  ) {
-
-    const index =
-      (
-        Math.max(
-          startIndex,
-          -1
-        ) +
-        step
-      ) %
-      order.length;
-
-
-    const candidate =
-      order[index];
-
-
-    if (
-      active.has(
-        candidate
-      )
-    ) {
-
-      return candidate;
-
-    }
-
-  }
-
-
-  return null;
 
 }
 
 
 /* =========================================================
-   PERFIL FIREBASE
+   RENDER SALA
 ========================================================= */
 
-async function ensureProfile() {
+function renderRoom(room) {
+
+  const ids =
+    getPlayerIds(room);
+
+  const playersList =
+    $('playersList');
+
+  if (playersList) {
+
+    playersList.innerHTML =
+      '';
+
+    ids.forEach(uid => {
+
+      const div =
+        document.createElement(
+          'div'
+        );
+
+      div.className =
+        'player-card' +
+        (
+          uid === me.uid
+            ? ' me'
+            : ''
+        );
+
+      div.innerHTML = `
+        <strong>
+          <span class="player-dot ${playerDot(
+            room,
+            uid
+          )}"></span>
+
+          ${escapeHtml(
+            playerName(
+              room,
+              uid
+            )
+          )}
+        </strong>
+
+        <p>
+          ${
+            uid === room.host
+              ? 'Anfitrión'
+              : 'Jugador'
+          }
+
+          ${
+            uid === me.uid
+              ? ' · Tú'
+              : ''
+          }
+        </p>
+      `;
+
+      playersList.appendChild(
+        div
+      );
+
+    });
+
+  }
 
   if (
-    !me ||
-    !displayName
+    room.status !==
+    'waiting'
   ) {
+    return;
+  }
+
+  const maxPlayers =
+    room.maxPlayers || 4;
+
+  const roomSubtitle =
+    $('roomSubtitle');
+
+  if (roomSubtitle) {
+
+    roomSubtitle.textContent =
+      ids.length === 1
+        ? `Esperando jugadores · 1/${maxPlayers}`
+        : `${ids.length}/${maxPlayers} jugadores conectados.`;
+
+  }
+
+  const startBtn =
+    $('startBtn');
+
+  if (startBtn) {
+
+    startBtn.classList.toggle(
+      'hidden',
+      !(
+        room.host ===
+          me.uid &&
+        ids.length >= 2 &&
+        ids.length <=
+          maxPlayers
+      )
+    );
+
+  }
+
+  showView(
+    'roomView'
+  );
+
+}
+
+
+/* =========================================================
+   INICIAR PARTIDA
+========================================================= */
+
+const startBtn =
+  $('startBtn');
+
+if (startBtn) {
+
+  startBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      if (
+        !currentRoomCode ||
+        !me
+      ) {
+        return;
+      }
+
+      startBtn.disabled =
+        true;
+
+      status(
+        'roomStatus',
+        'Preparando partida…'
+      );
+
+      try {
+
+        const roomRef =
+          ref(
+            db,
+            `rooms/${currentRoomCode}`
+          );
+
+        const snap =
+          await get(
+            roomRef
+          );
+
+        if (
+          !snap.exists()
+        ) {
+
+          status(
+            'roomStatus',
+            'La sala ya no existe.'
+          );
+
+          return;
+
+        }
+
+        const room =
+          snap.val();
+
+        const ids =
+          getPlayerIds(
+            room
+          );
+
+        const maxPlayers =
+          room.maxPlayers || 4;
+
+        if (
+          room.host !== me.uid ||
+          room.status !==
+            'waiting' ||
+          ids.length < 2 ||
+          ids.length >
+            maxPlayers
+        ) {
+
+          status(
+            'roomStatus',
+            'Se necesitan entre 2 y 4 jugadores para iniciar.'
+          );
+
+          return;
+
+        }
+
+        const deck =
+          makeDeck();
+
+        const hands =
+          {};
+
+        /*
+          2 jugadores = 7 cartas.
+          3-4 jugadores = 6.
+        */
+
+        const handSize =
+          ids.length === 2
+            ? 7
+            : 6;
+
+        ids.forEach(uid => {
+
+          hands[uid] =
+            deck.splice(
+              0,
+              handSize
+            );
+
+        });
+
+        const playerNames =
+          Object.fromEntries(
+
+            ids.map(
+              uid => [
+                uid,
+                playerName(
+                  room,
+                  uid
+                )
+              ]
+            )
+
+          );
+
+        const game = {
+
+          board:
+            makeBoard(),
+
+          deck,
+
+          hands,
+
+          chips: {},
+
+          turnOrder:
+            ids,
+
+          playerNames,
+
+          turn:
+            ids[0],
+
+          winner:
+            null,
+
+          finishReason:
+            null,
+
+          sequences:
+            Object.fromEntries(
+              ids.map(
+                uid => [
+                  uid,
+                  0
+                ]
+              )
+            ),
+
+          completedSequences:
+            {},
+
+          moveCount:
+            0,
+
+          updatedAt:
+            Date.now()
+
+        };
+
+        const result =
+          await runTransaction(
+
+            roomRef,
+
+            current => {
+
+              if (!current) {
+                return;
+              }
+
+              const currentIds =
+                getPlayerIds(
+                  current
+                );
+
+              if (
+                current.host !==
+                  me.uid ||
+                current.status !==
+                  'waiting' ||
+                currentIds.length <
+                  2 ||
+                currentIds.length >
+                  (current.maxPlayers || 4)
+              ) {
+
+                return;
+
+              }
+
+              if (
+                currentIds.join('|') !==
+                ids.join('|')
+              ) {
+
+                return;
+
+              }
+
+              current.status =
+                'playing';
+
+              current.game =
+                game;
+
+              return current;
+
+            }
+
+          );
+
+        if (
+          !result.committed
+        ) {
+
+          status(
+            'roomStatus',
+            'La sala cambió antes de iniciar. Intenta otra vez.'
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          'ERROR INICIANDO PARTIDA:',
+          error
+        );
+
+        status(
+          'roomStatus',
+          'No se pudo iniciar la partida.'
+        );
+
+      } finally {
+
+        startBtn.disabled =
+          false;
+
+      }
+
+    }
+
+  );
+
+}
+
+/* =========================================================
+   SALIR DE SALA / PARTIDA
+========================================================= */
+
+const leaveRoomBtn =
+  $('leaveRoomBtn');
+
+if (leaveRoomBtn) {
+
+  leaveRoomBtn.addEventListener(
+    'click',
+    leaveRoom
+  );
+
+}
+
+
+const leaveGameBtn =
+  $('leaveGameBtn');
+
+if (leaveGameBtn) {
+
+  leaveGameBtn.addEventListener(
+    'click',
+    leaveRoom
+  );
+
+}
+
+
+/* =========================================================
+   SALIR DE SALA
+========================================================= */
+
+async function leaveRoom() {
+
+  if (
+    !currentRoomCode ||
+    !me
+  ) {
+
+    leaveToLobby();
 
     return;
 
   }
 
 
-  await set(
-
-    ref(
-      db,
-      `users/${me.uid}`
-    ),
-
-    {
-      name:
-        displayName,
-
-      lastSeen:
-        Date.now()
-    }
-
-  );
-
-}
+  const code =
+    currentRoomCode;
 
 
-/* =========================================================
-   INICIAR FIREBASE
-========================================================= */
+  const uid =
+    me.uid;
 
-async function bootstrap() {
+
+  /*
+    Detener listener local primero.
+  */
+
+  if (roomUnsub) {
+
+    roomUnsub();
+
+    roomUnsub =
+      null;
+
+  }
+
 
   try {
 
-    await signInAnonymously(
-      auth
-    );
-
-  } catch (error) {
-
-    console.error(
-      'Error Firebase:',
-      error
-    );
-
-
-    updatePlayerPill(
-      'Error de conexión'
-    );
-
-
-    status(
-      'lobbyStatus',
-      'No se pudo conectar con Firebase.'
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   USUARIO AUTENTICADO
-========================================================= */
-
-onAuthStateChanged(
-
-  auth,
-
-  async user => {
-
-    me = user;
-
-
-    if (!user) {
-
-      return;
-
-    }
-
-
-    updatePlayerPill(
-      displayName
-        ? displayName
-        : 'Invitado conectado'
-    );
-
-
-    startMatchListener();
-
-
-    if (displayName) {
-
-      await ensureProfile();
-
-
-      showView(
-        'lobbyView'
-      );
-
-    } else {
-
-      showView(
-        'authView'
-      );
-
-    }
-
-  }
-
-);
-
-
-/* =========================================================
-   REGISTRO DE NOMBRE / NICKNAME
-========================================================= */
-
-const nameForm =
-  $('nameForm');
-
-
-if (nameForm) {
-
-  nameForm.addEventListener(
-
-    'submit',
-
-    async event => {
-
-      event.preventDefault();
-
-
-      const input =
-        $('nameInput');
-
-
-      if (!input) {
-
-        return;
-
-      }
-
-
-      const name =
-        normalizeName(
-          input.value
-        );
-
-
-      /*
-        Validación del nickname.
-      */
-
-      if (
-        name.length < 2
-      ) {
-
-        input.setCustomValidity(
-          'Escribe al menos 2 caracteres.'
-        );
-
-
-        input.reportValidity();
-
-
-        input.focus();
-
-
-        return;
-
-      }
-
-
-      input.setCustomValidity(
-        ''
+    const roomRef =
+      ref(
+        db,
+        `rooms/${code}`
       );
 
 
-      /*
-        Guardar nombre.
-      */
+    /*
+      Modificamos toda la sala con
+      transacción para evitar conflictos.
+    */
 
-      displayName =
-        name;
+    const result =
+      await runTransaction(
+
+        roomRef,
+
+        room => {
+
+          if (!room) {
+
+            return null;
+
+          }
 
 
-      localStorage.setItem(
-        'kc_name',
-        name
+          const wasHost =
+            room.host ===
+            uid;
+
+
+          const gameWasActive =
+            room.status ===
+              'playing' &&
+            room.game &&
+            !room.game.winner;
+
+
+          /*
+            Quitar jugador.
+          */
+
+          if (
+            room.players
+          ) {
+
+            delete room.players[
+              uid
+            ];
+
+          }
+
+
+          const remaining =
+            Object.keys(
+              room.players ||
+              {}
+            );
+
+
+          /*
+            Nadie quedó:
+            eliminar sala.
+          */
+
+          if (
+            remaining.length ===
+            0
+          ) {
+
+            return null;
+
+          }
+
+
+          /*
+            Si era anfitrión,
+            transferir host.
+          */
+
+          if (wasHost) {
+
+            const ordered =
+              Object.entries(
+                room.players ||
+                {}
+              )
+
+                .sort(
+                  ([, a], [, b]) =>
+                    (a.joinedAt || 0) -
+                    (b.joinedAt || 0)
+                )
+
+                .map(
+                  ([playerUid]) =>
+                    playerUid
+                );
+
+
+            room.host =
+              ordered[0] ||
+              remaining[0];
+
+          }
+
+
+          /*
+            Si la partida estaba activa,
+            revisar quién sigue jugando.
+          */
+
+          if (
+            gameWasActive
+          ) {
+
+            const active =
+              getActivePlayerIds(
+                room
+              );
+
+
+            /*
+              Solo queda uno:
+              gana automáticamente.
+            */
+
+            if (
+              active.length ===
+              1
+            ) {
+
+              room.game.winner =
+                active[0];
+
+
+              room.game.finishReason =
+                'forfeit';
+
+
+              room.game.updatedAt =
+                Date.now();
+
+
+              room.status =
+                'finished';
+
+            } else if (
+              active.length >=
+              2
+            ) {
+
+              /*
+                Si quien salió tenía
+                el turno, avanzar.
+              */
+
+              if (
+                room.game.turn ===
+                uid
+              ) {
+
+                const next =
+                  getNextActivePlayer(
+                    room,
+                    uid
+                  );
+
+
+                if (next) {
+
+                  room.game.turn =
+                    next;
+
+                }
+
+              }
+
+
+              room.game.updatedAt =
+                Date.now();
+
+            }
+
+          }
+
+
+          return room;
+
+        }
+
       );
 
 
-      /*
-        Actualizar encabezado.
-      */
+    /*
+      Si la transacción no se pudo
+      completar, intentamos por lo menos
+      borrar nuestra entrada.
+    */
 
-      updatePlayerPill(
-        name
-      );
-
-
-      /*
-        Guardar perfil Firebase.
-      */
+    if (
+      !result.committed
+    ) {
 
       try {
 
-        await ensureProfile();
+        await remove(
+
+          ref(
+            db,
+            `rooms/${code}/players/${uid}`
+          )
+
+        );
 
       } catch (error) {
 
-        console.error(
-          'No se pudo actualizar el perfil:',
+        console.warn(
+          'No se pudo realizar limpieza secundaria:',
           error
         );
 
       }
 
-
-      /*
-        Limpiar mensajes anteriores.
-      */
-
-      status(
-        'lobbyStatus',
-        ''
-      );
-
-
-      /*
-        Entrar al lobby.
-      */
-
-      showView(
-        'lobbyView'
-      );
-
     }
 
-  );
+
+    leaveToLobby(
+      'Saliste de la sala.'
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      'Error al salir de la sala:',
+      error
+    );
+
+
+    /*
+      Aunque Firebase falle,
+      liberar interfaz local.
+    */
+
+    leaveToLobby(
+      'Saliste de la sala.'
+    );
+
+  }
 
 }
 
-
-/* =========================================================
-   LIMPIAR VALIDACIÓN AL ESCRIBIR
-========================================================= */
-
-const nameInput =
-  $('nameInput');
-
-
-if (nameInput) {
-
-  nameInput.addEventListener(
-    'input',
-    () => {
-
-      nameInput.setCustomValidity(
-        ''
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   INPUT DEL CÓDIGO DE SALA
-========================================================= */
-
-const roomCodeInput =
-  $('roomCodeInput');
-
-
-if (roomCodeInput) {
-
-  roomCodeInput.addEventListener(
-
-    'input',
-
-    event => {
-
-      event.target.value =
-        event.target.value
-
-          .toUpperCase()
-
-          .replace(
-            /[^A-Z0-9]/g,
-            ''
-          )
-
-          .slice(
-            0,
-            6
-          );
-
-    }
-
-  );
-
-
-  /*
-    Permitir presionar ENTER
-    para entrar a una sala.
-  */
-
-  roomCodeInput.addEventListener(
-
-    'keydown',
-
-    event => {
-
-      if (
-        event.key ===
-        'Enter'
-      ) {
-
-        event.preventDefault();
-
-
-        $('joinRoomBtn')
-          ?.click();
-
-      }
-
-    }
-
-  );
-
-}
 
 /* =========================================================
    VOLVER AL LOBBY
@@ -2487,16 +2577,15 @@ async function changePlayer() {
   try {
 
     /*
-      Cancelar matchmaking
-      por seguridad.
+      Cancelar matchmaking.
     */
 
     await cancelMatch();
 
 
     /*
-      Si todavía está asociado
-      a una sala, salir bien.
+      Si está en una sala,
+      salir primero.
     */
 
     if (
@@ -2509,7 +2598,7 @@ async function changePlayer() {
 
 
     /*
-      Borrar nickname guardado.
+      Eliminar nickname local.
     */
 
     localStorage.removeItem(
@@ -2522,7 +2611,7 @@ async function changePlayer() {
 
 
     /*
-      Limpiar formulario.
+      Limpiar input.
     */
 
     const input =
@@ -2534,6 +2623,7 @@ async function changePlayer() {
       input.value =
         '';
 
+
       input.setCustomValidity(
         ''
       );
@@ -2542,7 +2632,7 @@ async function changePlayer() {
 
 
     /*
-      Limpiar estados.
+      Limpiar mensajes.
     */
 
     status(
@@ -2564,7 +2654,7 @@ async function changePlayer() {
 
 
     /*
-      Mostrar como invitado.
+      Actualizar encabezado.
     */
 
     updatePlayerPill(
@@ -2573,18 +2663,17 @@ async function changePlayer() {
 
 
     /*
-      Regresar al registro
-      del nickname.
+      Regresar solamente al registro
+      de nickname.
+
+      NO cerramos la sesión anónima
+      de Firebase.
     */
 
     showView(
       'authView'
     );
 
-
-    /*
-      Llevar cursor al campo.
-    */
 
     setTimeout(
       () => {
@@ -2604,9 +2693,27 @@ async function changePlayer() {
     );
 
 
-    status(
-      'lobbyStatus',
-      'No se pudo cambiar de jugador.'
+    /*
+      Incluso si falla una limpieza de
+      Firebase, permitir cambiar nickname.
+    */
+
+    localStorage.removeItem(
+      'kc_name'
+    );
+
+
+    displayName =
+      '';
+
+
+    updatePlayerPill(
+      'Invitado conectado'
+    );
+
+
+    showView(
+      'authView'
     );
 
 
@@ -2637,6 +2744,149 @@ if (changePlayerBtn) {
   changePlayerBtn.addEventListener(
     'click',
     changePlayer
+  );
+
+}
+
+
+/* =========================================================
+   COPIAR CÓDIGO DE SALA
+========================================================= */
+
+const copyRoomCodeBtn =
+  $('copyRoomCodeBtn');
+
+
+if (copyRoomCodeBtn) {
+
+  copyRoomCodeBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      if (
+        !currentRoomCode
+      ) {
+
+        status(
+          'roomStatus',
+          'No hay código de sala para copiar.'
+        );
+
+        return;
+
+      }
+
+
+      const code =
+        currentRoomCode;
+
+
+      const originalText =
+        copyRoomCodeBtn.textContent;
+
+
+      try {
+
+        /*
+          Método moderno.
+        */
+
+        if (
+          navigator.clipboard &&
+          window.isSecureContext
+        ) {
+
+          await navigator.clipboard.writeText(
+            code
+          );
+
+        } else {
+
+          /*
+            Respaldo para navegadores
+            donde Clipboard API no esté
+            disponible.
+          */
+
+          const textarea =
+            document.createElement(
+              'textarea'
+            );
+
+
+          textarea.value =
+            code;
+
+
+          textarea.style.position =
+            'fixed';
+
+
+          textarea.style.opacity =
+            '0';
+
+
+          document.body.appendChild(
+            textarea
+          );
+
+
+          textarea.focus();
+
+          textarea.select();
+
+
+          document.execCommand(
+            'copy'
+          );
+
+
+          textarea.remove();
+
+        }
+
+
+        copyRoomCodeBtn.textContent =
+          '✓ Copiado';
+
+
+        status(
+          'roomStatus',
+          `Código ${code} copiado.`
+        );
+
+
+        setTimeout(
+          () => {
+
+            copyRoomCodeBtn.textContent =
+              originalText ||
+              'Copiar código';
+
+          },
+          1500
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          'Error copiando código:',
+          error
+        );
+
+
+        status(
+          'roomStatus',
+          `Código de sala: ${code}`
+        );
+
+      }
+
+    }
+
   );
 
 }
@@ -2681,8 +2931,8 @@ function renderGame(room) {
 
 
   /*
-    Si no es nuestro turno,
-    cancelar selección.
+    Si ya no es nuestro turno,
+    quitar selección.
   */
 
   if (
@@ -2695,9 +2945,9 @@ function renderGame(room) {
   }
 
 
-  /*
-    Mostrar turno.
-  */
+  /* =======================================================
+     TURNO
+  ======================================================= */
 
   const turnLabel =
     $('turnLabel');
@@ -2732,9 +2982,9 @@ function renderGame(room) {
   }
 
 
-  /*
-    Marcador.
-  */
+  /* =======================================================
+     MARCADOR
+  ======================================================= */
 
   const order =
     getTurnOrder(
@@ -2786,7 +3036,7 @@ function renderGame(room) {
 
 
   /*
-    Render visual.
+    Dibujar tablero y mano.
   */
 
   renderBoard(
@@ -2882,10 +3132,11 @@ function renderBoard(room) {
 
 
   /*
-    Construir las 100 casillas.
+    Crear las 100 casillas.
   */
 
   game.board.forEach(
+
     (
       card,
       index
@@ -2915,6 +3166,7 @@ function renderBoard(room) {
 
 
       button.setAttribute(
+
         'aria-label',
 
         card === FREE
@@ -2924,6 +3176,7 @@ function renderBoard(room) {
           : `Casilla ${cardText(
               card
             )}`
+
       );
 
 
@@ -2971,10 +3224,6 @@ function renderBoard(room) {
           )}`;
 
 
-        /*
-          Tooltip con jugador.
-        */
-
         chip.title =
           playerName(
             room,
@@ -2990,8 +3239,8 @@ function renderBoard(room) {
 
 
       /*
-        Casilla válida para la carta
-        que tenemos seleccionada.
+        ¿Es una casilla válida para
+        la carta seleccionada?
       */
 
       const legal =
@@ -3014,11 +3263,6 @@ function renderBoard(room) {
 
       }
 
-
-      /*
-        Solo mandar jugada cuando
-        realmente se toca la casilla.
-      */
 
       button.addEventListener(
 
@@ -3047,7 +3291,7 @@ function renderBoard(room) {
 
 
 /* =========================================================
-   MANO
+   MANO DEL JUGADOR
 ========================================================= */
 
 function renderHand(room) {
@@ -3089,6 +3333,7 @@ function renderHand(room) {
 
 
   cards.forEach(
+
     (
       id,
       index
@@ -3105,6 +3350,7 @@ function renderHand(room) {
 
 
       button.setAttribute(
+
         'aria-pressed',
 
         selectedCardIndex ===
@@ -3113,14 +3359,18 @@ function renderHand(room) {
           ? 'true'
 
           : 'false'
+
       );
 
 
       button.setAttribute(
+
         'aria-label',
+
         `Carta ${cardText(
           id
         )}`
+
       );
 
 
@@ -3151,16 +3401,11 @@ function renderHand(room) {
         );
 
 
-      /*
-        Contenido carta.
-      */
-
       button.innerHTML = `
 
         <span>
           ${cardText(id)}
         </span>
-
 
         <span
           class="big ${
@@ -3169,18 +3414,14 @@ function renderHand(room) {
               : ''
           }"
         >
-
           ${
             SUIT_SYMBOL[
               id.slice(-1)
             ] || ''
           }
-
         </span>
 
-
         <span class="special">
-
           ${
             type === 'wild'
 
@@ -3192,15 +3433,10 @@ function renderHand(room) {
 
                 : 'Carta de tablero'
           }
-
         </span>
 
       `;
 
-
-      /*
-        Seleccionar carta.
-      */
 
       button.addEventListener(
 
@@ -3208,17 +3444,24 @@ function renderHand(room) {
 
         () => {
 
+          /*
+            No permitir seleccionar
+            cartas fuera de turno.
+          */
+
           if (
             !myTurn
           ) {
 
             status(
+
               'gameStatus',
 
               `Espera. Es turno de ${playerName(
                 room,
                 game.turn
               )}.`
+
             );
 
 
@@ -3228,13 +3471,13 @@ function renderHand(room) {
 
 
           /*
-            Si toca la misma carta
-            seleccionada, cancelar.
+            Si toca la misma carta,
+            cancelar selección.
           */
 
           if (
             selectedCardIndex ===
-            index
+              index
           ) {
 
             selectedCardIndex =
@@ -3263,7 +3506,7 @@ function renderHand(room) {
 
 
           /*
-            Seleccionar.
+            Seleccionar carta.
           */
 
           selectedCardIndex =
@@ -3281,11 +3524,13 @@ function renderHand(room) {
 
 
           status(
+
             'gameStatus',
 
             `Seleccionaste ${cardText(
               id
             )}. Ahora toca una casilla resaltada.`
+
           );
 
         }
@@ -3302,9 +3547,9 @@ function renderHand(room) {
   );
 
 
-  /*
-    Ayuda inferior de la mano.
-  */
+  /* =======================================================
+     TEXTO DE AYUDA DE LA MANO
+  ======================================================= */
 
   const handHelp =
     $('handHelp');
@@ -3338,7 +3583,7 @@ function renderHand(room) {
 
   } else if (
     selectedCardIndex ===
-    null
+      null
   ) {
 
     handHelp.textContent =
@@ -3438,8 +3683,8 @@ function isLegalTarget(
 
 
   /*
-    Las esquinas libres
-    no se pueden seleccionar.
+    Las esquinas libres no se
+    seleccionan.
   */
 
   if (
@@ -3464,7 +3709,7 @@ function isLegalTarget(
 
   if (
     type ===
-    'wild'
+      'wild'
   ) {
 
     return !occupied;
@@ -3473,22 +3718,23 @@ function isLegalTarget(
 
 
   /*
-    Jota de quitar.
+    Jota para quitar ficha.
   */
 
   if (
     type ===
-    'remove'
+      'remove'
   ) {
 
     /*
-      Tiene que existir una ficha
-      y no puede ser propia.
+      Debe haber una ficha
+      y debe ser rival.
     */
 
     if (
       !occupied ||
-      chipUid === me.uid
+      chipUid ===
+        me.uid
     ) {
 
       return false;
@@ -3497,8 +3743,9 @@ function isLegalTarget(
 
 
     /*
-      No quitar fichas que forman
-      una secuencia reconocida.
+      Una ficha que ya pertenece
+      a una secuencia reconocida
+      queda protegida.
     */
 
     if (
@@ -3521,9 +3768,7 @@ function isLegalTarget(
 
   /*
     Carta normal:
-    la casilla debe estar libre y
-    coincidir exactamente con
-    la carta de la mano.
+    casilla libre y carta idéntica.
   */
 
   return (
@@ -3545,13 +3790,6 @@ function findSequencesCreatedByMove(
   placedIndex
 ) {
 
-  /*
-    Horizontal
-    Vertical
-    Diagonal descendente
-    Diagonal ascendente
-  */
-
   const directions = [
     [0, 1],
     [1, 0],
@@ -3561,8 +3799,8 @@ function findSequencesCreatedByMove(
 
 
   /*
-    Una esquina libre cuenta
-    para cualquier jugador.
+    Las cuatro esquinas libres
+    cuentan para cualquier jugador.
   */
 
   const own =
@@ -3607,7 +3845,8 @@ function findSequencesCreatedByMove(
 
 
   /*
-    Revisar cada dirección.
+    Revisar horizontal, vertical
+    y las dos diagonales.
   */
 
   for (
@@ -3616,13 +3855,8 @@ function findSequencesCreatedByMove(
   ) {
 
     /*
-      Una nueva secuencia debe
-      incluir la ficha que acaba
-      de colocarse.
-
-      Probamos todas las ventanas
-      posibles de 5 casillas que
-      contienen esa posición.
+      La secuencia encontrada debe
+      contener la ficha recién puesta.
     */
 
     for (
@@ -3668,7 +3902,7 @@ function findSequencesCreatedByMove(
 
 
         /*
-          Salió del tablero.
+          Fuera del tablero.
         */
 
         if (
@@ -3693,7 +3927,7 @@ function findSequencesCreatedByMove(
 
         if (
           index ===
-          placedIndex
+            placedIndex
         ) {
 
           containsMove =
@@ -3703,12 +3937,14 @@ function findSequencesCreatedByMove(
 
 
         /*
-          Tiene que pertenecer
-          al jugador o ser esquina.
+          Cada posición debe ser
+          nuestra o una esquina libre.
         */
 
         if (
-          !own(index)
+          !own(
+            index
+          )
         ) {
 
           valid =
@@ -3726,10 +3962,6 @@ function findSequencesCreatedByMove(
       }
 
 
-      /*
-        Línea completa.
-      */
-
       if (
         valid &&
         containsMove &&
@@ -3737,7 +3969,7 @@ function findSequencesCreatedByMove(
       ) {
 
         /*
-          ID estable de la línea.
+          Crear ID estable.
         */
 
         const id =
@@ -3768,8 +4000,7 @@ function findSequencesCreatedByMove(
 
 
   /*
-    Eliminar resultados
-    duplicados.
+    Eliminar duplicados.
   */
 
   return [
@@ -3814,8 +4045,8 @@ function registerNewSequences(
 
 
   /*
-    Copiamos las que ya estaban
-    registradas.
+    Secuencias ya reconocidas
+    anteriormente.
   */
 
   const registered =
@@ -3848,8 +4079,8 @@ function registerNewSequences(
   ) {
 
     /*
-      No contar exactamente
-      la misma línea dos veces.
+      No registrar exactamente
+      la misma línea.
     */
 
     const duplicate =
@@ -3872,12 +4103,13 @@ function registerNewSequences(
 
 
     /*
-      Dos secuencias válidas pueden
-      compartir como máximo una casilla.
+      Una secuencia nueva solamente
+      puede compartir UNA ficha con
+      una secuencia ya registrada.
 
-      Con esto una línea de 6 fichas
-      no se interpreta como dos
-      secuencias completas.
+      Esto evita que una línea de
+      seis fichas se cuente como
+      dos secuencias distintas.
     */
 
     const valid =
@@ -3886,28 +4118,23 @@ function registerNewSequences(
         previous => {
 
           const previousCells =
-            new Set(
-              previous.cells ||
-              []
-            );
+            Array.isArray(
+              previous.cells
+            )
+              ? previous.cells
+              : [];
 
 
           const overlap =
-            candidate.cells
-
-              .filter(
-                cell =>
-                  previousCells.has(
-                    cell
-                  )
-              )
-
-              .length;
+            candidate.cells.filter(
+              cell =>
+                previousCells.includes(
+                  cell
+                )
+            ).length;
 
 
-          return (
-            overlap <= 1
-          );
+          return overlap <= 1;
 
         }
 
@@ -3927,23 +4154,12 @@ function registerNewSequences(
       candidate
     );
 
-
-    /*
-      Solo se necesitan dos
-      secuencias para ganar.
-    */
-
-    if (
-      registered.length >=
-      2
-    ) {
-
-      break;
-
-    }
-
   }
 
+
+  /*
+    Guardar secuencias completas.
+  */
 
   game.completedSequences[
     uid
@@ -3951,18 +4167,18 @@ function registerNewSequences(
     registered;
 
 
+  /*
+    El marcador es el número
+    de secuencias registradas.
+  */
+
   game.sequences[
     uid
   ] =
-    Math.min(
-      2,
-      registered.length
-    );
+    registered.length;
 
 
-  return game.sequences[
-    uid
-  ];
+  return registered.length;
 
 }
 
@@ -3974,51 +4190,26 @@ async function playAt(index) {
 
   if (
     !currentRoomCode ||
-    !currentRoom?.game ||
+    !currentRoom ||
+    !currentRoom.game ||
+    !me ||
     moveInFlight
   ) {
-
     return;
-
   }
 
 
-  if (
-    currentRoom.game.winner
-  ) {
-
-    return;
-
-  }
+  const game =
+    currentRoom.game;
 
 
   /*
-    Verificación local de turno.
+    Partida terminada.
   */
 
   if (
-    currentRoom.game.turn !==
-    me.uid
+    game.winner
   ) {
-
-    selectedCardIndex =
-      null;
-
-
-    status(
-      'gameStatus',
-
-      `Espera. Es turno de ${playerName(
-        currentRoom,
-        currentRoom.game.turn
-      )}.`
-    );
-
-
-    renderHand(
-      currentRoom
-    );
-
 
     return;
 
@@ -4026,12 +4217,35 @@ async function playAt(index) {
 
 
   /*
-    Debe haber una carta seleccionada.
+    Debe ser nuestro turno.
+  */
+
+  if (
+    game.turn !==
+      me.uid
+  ) {
+
+    status(
+      'gameStatus',
+      `Espera. Es turno de ${playerName(
+        currentRoom,
+        game.turn
+      )}.`
+    );
+
+    return;
+
+  }
+
+
+  /*
+    Debemos tener una carta
+    seleccionada.
   */
 
   if (
     selectedCardIndex ===
-    null
+      null
   ) {
 
     status(
@@ -4039,28 +4253,84 @@ async function playAt(index) {
       'Primero selecciona una carta.'
     );
 
+    return;
+
+  }
+
+
+  const hand =
+    game.hands?.[
+      me.uid
+    ] || [];
+
+
+  const selectedCard =
+    hand[
+      selectedCardIndex
+    ];
+
+
+  if (
+    !selectedCard
+  ) {
+
+    selectedCardIndex =
+      null;
+
+    renderHand(
+      currentRoom
+    );
+
+    renderBoard(
+      currentRoom
+    );
 
     return;
 
   }
 
 
-  const cardIndex =
-    selectedCardIndex;
+  /*
+    Revisar localmente antes
+    de mandar la transacción.
+  */
 
+  if (
+    !isLegalTarget(
+      currentRoom,
+      selectedCard,
+      index
+    )
+  ) {
 
-  const roomRef =
-    ref(
-      db,
-      `rooms/${currentRoomCode}`
+    status(
+      'gameStatus',
+      'No puedes jugar esa carta en esa casilla.'
     );
+
+    return;
+
+  }
 
 
   moveInFlight =
     true;
 
 
+  status(
+    'gameStatus',
+    'Realizando jugada…'
+  );
+
+
   try {
+
+    const roomRef =
+      ref(
+        db,
+        `rooms/${currentRoomCode}`
+      );
+
 
     const result =
       await runTransaction(
@@ -4073,9 +4343,39 @@ async function playAt(index) {
             !room ||
             room.status !==
               'playing' ||
-            !room.game ||
-            room.game.winner ||
-            room.game.turn !==
+            !room.game
+          ) {
+
+            return;
+
+          }
+
+
+          const txGame =
+            room.game;
+
+
+          /*
+            La partida pudo haber terminado
+            mientras realizábamos la jugada.
+          */
+
+          if (
+            txGame.winner
+          ) {
+
+            return;
+
+          }
+
+
+          /*
+            Verificar otra vez el turno
+            dentro de Firebase.
+          */
+
+          if (
+            txGame.turn !==
               me.uid
           ) {
 
@@ -4085,8 +4385,8 @@ async function playAt(index) {
 
 
           /*
-            Deben seguir por lo menos
-            dos jugadores activos.
+            Verificar que seguimos
+            siendo jugador activo.
           */
 
           const active =
@@ -4096,7 +4396,9 @@ async function playAt(index) {
 
 
           if (
-            active.length < 2
+            !active.includes(
+              me.uid
+            )
           ) {
 
             return;
@@ -4104,19 +4406,15 @@ async function playAt(index) {
           }
 
 
-          /*
-            Obtener nuestra mano.
-          */
-
-          const hand =
-            room.game.hands?.[
+          const txHand =
+            txGame.hands?.[
               me.uid
             ];
 
 
           if (
             !Array.isArray(
-              hand
+              txHand
             )
           ) {
 
@@ -4126,16 +4424,21 @@ async function playAt(index) {
 
 
           /*
-            Carta seleccionada.
+            La posición de la carta
+            puede haber cambiado.
           */
 
           const card =
-            hand[
-              cardIndex
+            txHand[
+              selectedCardIndex
             ];
 
 
-          if (!card) {
+          if (
+            !card ||
+            card !==
+              selectedCard
+          ) {
 
             return;
 
@@ -4143,8 +4446,8 @@ async function playAt(index) {
 
 
           /*
-            Verificar nuevamente la jugada
-            dentro de Firebase.
+            Validar casilla usando
+            el estado real de Firebase.
           */
 
           if (
@@ -4160,37 +4463,40 @@ async function playAt(index) {
           }
 
 
+          txGame.chips =
+            txGame.chips ||
+            {};
+
+
           const type =
             jackType(
               card
             );
 
 
-          room.game.chips =
-            room.game.chips ||
-            {};
-
-
-          /* =================================================
-             JOTA PARA QUITAR
-          ================================================== */
+          /*
+            =================================================
+            JOTA PARA QUITAR FICHA
+            =================================================
+          */
 
           if (
             type ===
-            'remove'
+              'remove'
           ) {
 
-            delete room.game.chips[
+            delete txGame.chips[
               index
             ];
 
           } else {
 
-            /* ===============================================
-               CARTA NORMAL O JOTA LIBRE
-            ================================================ */
+            /*
+              Carta normal o Jota libre:
+              colocar nuestra ficha.
+            */
 
-            room.game.chips[
+            txGame.chips[
               index
             ] =
               me.uid;
@@ -4199,129 +4505,135 @@ async function playAt(index) {
 
 
           /*
-            Gastar carta seleccionada.
+            =================================================
+            GASTAR CARTA
+            =================================================
           */
 
-          hand.splice(
-            cardIndex,
+          txHand.splice(
+            selectedCardIndex,
             1
           );
 
 
           /*
-            Robar una carta del mazo.
+            Robar carta nueva si aún
+            quedan cartas en el mazo.
           */
 
           if (
-            room.game.deck?.length
+            Array.isArray(
+              txGame.deck
+            ) &&
+            txGame.deck.length
           ) {
 
-            hand.push(
-              room.game.deck.shift()
-            );
+            const newCard =
+              txGame.deck.shift();
+
+
+            if (newCard) {
+
+              txHand.push(
+                newCard
+              );
+
+            }
 
           }
 
 
-          /*
-            Guardar mano actualizada.
-          */
-
-          room.game.hands[
+          txGame.hands[
             me.uid
           ] =
-            hand;
+            txHand;
 
 
           /*
-            Una Jota para quitar
-            NO crea secuencia.
+            =================================================
+            REVISAR SECUENCIAS
 
-            Solamente una ficha que
-            acaba de colocarse puede
-            crear una secuencia.
+            Solo ocurre cuando pusimos
+            una ficha.
+
+            Una Jota que quita ficha
+            no crea secuencia.
+            =================================================
           */
-
-          let sequences =
-            room.game.sequences?.[
-              me.uid
-            ] || 0;
-
 
           if (
             type !==
-            'remove'
+              'remove'
           ) {
 
-            sequences =
+            const sequenceCount =
               registerNewSequences(
-                room.game,
+                txGame,
                 me.uid,
                 index
               );
 
+
+            /*
+              Se necesitan 2 secuencias.
+            */
+
+            if (
+              sequenceCount >=
+              2
+            ) {
+
+              txGame.winner =
+                me.uid;
+
+
+              txGame.finishReason =
+                'sequences';
+
+
+              room.status =
+                'finished';
+
+            }
+
           }
 
 
-          /* =================================================
-             VICTORIA
-          ================================================== */
+          /*
+            =================================================
+            SIGUIENTE TURNO
+            =================================================
+          */
 
           if (
-            sequences >= 2
+            !txGame.winner
           ) {
 
-            room.game.winner =
-              me.uid;
-
-
-            room.game.finishReason =
-              'sequences';
-
-
-            room.status =
-              'finished';
-
-          } else {
-
-            /* ===============================================
-               PASAR TURNO
-            ================================================ */
-
-            const nextPlayer =
+            const next =
               getNextActivePlayer(
                 room,
                 me.uid
               );
 
 
-            if (
-              !nextPlayer
-            ) {
+            if (next) {
 
-              return;
+              txGame.turn =
+                next;
 
             }
-
-
-            room.game.turn =
-              nextPlayer;
 
           }
 
 
-          /*
-            Estadísticas básicas.
-          */
-
-          room.game.moveCount =
+          txGame.moveCount =
             (
-              room.game.moveCount ||
+              txGame.moveCount ||
               0
             ) + 1;
 
 
-          room.game.updatedAt =
+          txGame.updatedAt =
             Date.now();
 
 
@@ -4333,27 +4645,16 @@ async function playAt(index) {
 
 
     /*
-      Resultado de la transacción.
+      Si Firebase rechazó la jugada.
     */
 
     if (
-      result.committed
+      !result.committed
     ) {
 
-      selectedCardIndex =
-        null;
-
-
       status(
         'gameStatus',
-        'Movimiento realizado. Esperando al siguiente jugador…'
-      );
-
-    } else {
-
-      status(
-        'gameStatus',
-        'La jugada no fue válida o el turno ya cambió.'
+        'La jugada no pudo realizarse. El tablero pudo haber cambiado.'
       );
 
     }
@@ -4362,21 +4663,41 @@ async function playAt(index) {
   } catch (error) {
 
     console.error(
-      'Error realizando jugada:',
+      'ERROR REALIZANDO JUGADA:',
       error
     );
 
 
     status(
       'gameStatus',
-      'No se pudo guardar la jugada. Revisa tu conexión e intenta otra vez.'
+      'Ocurrió un error al realizar la jugada.'
     );
 
 
   } finally {
 
+    selectedCardIndex =
+      null;
+
+
     moveInFlight =
       false;
+
+
+    if (
+      currentRoom?.game
+    ) {
+
+      renderHand(
+        currentRoom
+      );
+
+
+      renderBoard(
+        currentRoom
+      );
+
+    }
 
   }
 
@@ -4399,36 +4720,28 @@ if (deadCardBtn) {
 
     async () => {
 
-      /*
-        Debe haber una carta
-        seleccionada.
-      */
-
       if (
-        selectedCardIndex ===
-          null ||
         !currentRoomCode ||
-        !currentRoom?.game
+        !currentRoom?.game ||
+        !me
       ) {
-
-        status(
-          'gameStatus',
-          'Selecciona primero una carta.'
-        );
-
 
         return;
 
       }
 
 
+      const game =
+        currentRoom.game;
+
+
       /*
-        Solo durante nuestro turno.
+        Debe ser nuestro turno.
       */
 
       if (
-        currentRoom.game.turn !==
-        me.uid
+        game.turn !==
+          me.uid
       ) {
 
         status(
@@ -4436,14 +4749,40 @@ if (deadCardBtn) {
           'Solo puedes cambiar una carta muerta durante tu turno.'
         );
 
-
         return;
 
       }
 
 
       if (
-        moveInFlight
+        selectedCardIndex ===
+          null
+      ) {
+
+        status(
+          'gameStatus',
+          'Selecciona primero la carta que quieres reemplazar.'
+        );
+
+        return;
+
+      }
+
+
+      const hand =
+        game.hands?.[
+          me.uid
+        ] || [];
+
+
+      const card =
+        hand[
+          selectedCardIndex
+        ];
+
+
+      if (
+        !card
       ) {
 
         return;
@@ -4451,12 +4790,119 @@ if (deadCardBtn) {
       }
 
 
-      moveInFlight =
+      /*
+        Las Jotas nunca se consideran
+        cartas muertas.
+      */
+
+      if (
+        isJack(
+          card
+        )
+      ) {
+
+        status(
+          'gameStatus',
+          'Las Jotas no pueden cambiarse como carta muerta.'
+        );
+
+        return;
+
+      }
+
+
+      /*
+        Debe quedar por lo menos una
+        carta en el mazo.
+      */
+
+      if (
+        !Array.isArray(
+          game.deck
+        ) ||
+        !game.deck.length
+      ) {
+
+        status(
+          'gameStatus',
+          'No quedan cartas en el mazo.'
+        );
+
+        return;
+
+      }
+
+
+      /*
+        Buscar si aún existe alguna
+        casilla disponible de esa carta.
+      */
+
+      let hasAvailableCell =
+        false;
+
+
+      for (
+        let index = 0;
+        index <
+          game.board.length;
+        index++
+      ) {
+
+        if (
+          game.board[
+            index
+          ] === card &&
+          !game.chips?.[
+            index
+          ]
+        ) {
+
+          hasAvailableCell =
+            true;
+
+          break;
+
+        }
+
+      }
+
+
+      /*
+        Si existe por lo menos una
+        casilla disponible, NO está muerta.
+      */
+
+      if (
+        hasAvailableCell
+      ) {
+
+        status(
+          'gameStatus',
+          'Esa carta todavía tiene una casilla disponible en el tablero.'
+        );
+
+        return;
+
+      }
+
+
+      const oldIndex =
+        selectedCardIndex;
+
+
+      const oldCard =
+        card;
+
+
+      deadCardBtn.disabled =
         true;
 
 
-      const selectedIndex =
-        selectedCardIndex;
+      status(
+        'gameStatus',
+        'Cambiando carta muerta…'
+      );
 
 
       try {
@@ -4472,12 +4918,13 @@ if (deadCardBtn) {
             room => {
 
               if (
-                !room?.game ||
+                !room ||
                 room.status !==
                   'playing' ||
+                !room.game ||
+                room.game.winner ||
                 room.game.turn !==
-                  me.uid ||
-                room.game.winner
+                  me.uid
               ) {
 
                 return;
@@ -4485,42 +4932,23 @@ if (deadCardBtn) {
               }
 
 
-              const hand =
-                room.game.hands?.[
+              const txGame =
+                room.game;
+
+
+              const txHand =
+                txGame.hands?.[
                   me.uid
                 ];
 
 
               if (
                 !Array.isArray(
-                  hand
-                )
-              ) {
-
-                return;
-
-              }
-
-
-              const card =
-                hand[
-                  selectedIndex
-                ];
-
-
-              /*
-                Las Jotas nunca son
-                cartas muertas.
-
-                También debe quedar
-                al menos una carta
-                en el mazo.
-              */
-
-              if (
-                !card ||
-                isJack(card) ||
-                !room.game.deck?.length
+                  txHand
+                ) ||
+                txHand[
+                  oldIndex
+                ] !== oldCard
               ) {
 
                 return;
@@ -4529,40 +4957,30 @@ if (deadCardBtn) {
 
 
               /*
-                Revisar si todavía existe
-                alguna casilla libre para
-                esa carta.
+                Volver a comprobar que no
+                apareció una casilla libre.
               */
 
-              const stillAvailable =
-                room.game.board.some(
+              const stillDead =
+                !txGame.board.some(
 
                   (
                     boardCard,
                     boardIndex
-                  ) => {
+                  ) =>
 
-                    return (
-                      boardCard ===
-                        card &&
+                    boardCard ===
+                      oldCard &&
 
-                      !room.game.chips?.[
-                        boardIndex
-                      ]
-                    );
-
-                  }
+                    !txGame.chips?.[
+                      boardIndex
+                    ]
 
                 );
 
 
-              /*
-                Si existe una posición libre,
-                la carta NO está muerta.
-              */
-
               if (
-                stillAvailable
+                !stillDead
               ) {
 
                 return;
@@ -4570,26 +4988,49 @@ if (deadCardBtn) {
               }
 
 
-              /*
-                Sustituir carta.
+              if (
+                !Array.isArray(
+                  txGame.deck
+                ) ||
+                !txGame.deck.length
+              ) {
 
-                Esto NO consume turno.
-              */
+                return;
 
-              hand.splice(
-                selectedIndex,
-                1,
-                room.game.deck.shift()
-              );
+              }
 
 
-              room.game.hands[
+              const replacement =
+                txGame.deck.shift();
+
+
+              if (
+                !replacement
+              ) {
+
+                return;
+
+              }
+
+
+              txHand[
+                oldIndex
+              ] =
+                replacement;
+
+
+              txGame.hands[
                 me.uid
               ] =
-                hand;
+                txHand;
 
 
-              room.game.updatedAt =
+              /*
+                Cambiar carta muerta
+                NO consume turno.
+              */
+
+              txGame.updatedAt =
                 Date.now();
 
 
@@ -4610,14 +5051,14 @@ if (deadCardBtn) {
 
           status(
             'gameStatus',
-            'Carta muerta cambiada. Sigue siendo tu turno.'
+            'Carta muerta reemplazada. Sigues teniendo el turno.'
           );
 
         } else {
 
           status(
             'gameStatus',
-            'Esa carta no está muerta, es una Jota o ya no quedan cartas para robar.'
+            'La carta no pudo reemplazarse.'
           );
 
         }
@@ -4626,20 +5067,20 @@ if (deadCardBtn) {
       } catch (error) {
 
         console.error(
-          'Error cambiando carta muerta:',
+          'ERROR CARTA MUERTA:',
           error
         );
 
 
         status(
           'gameStatus',
-          'No se pudo cambiar la carta.'
+          'No se pudo reemplazar la carta.'
         );
 
 
       } finally {
 
-        moveInFlight =
+        deadCardBtn.disabled =
           false;
 
       }
@@ -4652,10 +5093,20 @@ if (deadCardBtn) {
 
 
 /* =========================================================
-   RESULTADO DE LA PARTIDA
+   MOSTRAR RESULTADO
 ========================================================= */
 
 function showResult(room) {
+
+  if (
+    !room?.game ||
+    !room.game.winner
+  ) {
+
+    return;
+
+  }
+
 
   const modal =
     $('modal');
@@ -4668,119 +5119,116 @@ function showResult(room) {
   }
 
 
-  /*
-    Si ya está abierto,
-    no volver a modificarlo.
-  */
-
-  if (
-    !modal.classList
-      .contains(
-        'hidden'
-      )
-  ) {
-
-    return;
-
-  }
-
-
-  const winner =
-    room.game?.winner;
-
-
-  const reason =
-    room.game?.finishReason;
-
-
-  const modalTitle =
+  const title =
     $('modalTitle');
 
 
-  const modalText =
+  const text =
     $('modalText');
 
 
-  /*
-    Título.
-  */
+  const winnerUid =
+    room.game.winner;
 
-  if (
-    modalTitle
-  ) {
+
+  const winnerName =
+    playerName(
+      room,
+      winnerUid
+    );
+
+
+  const iWon =
+    me &&
+    winnerUid ===
+      me.uid;
+
+
+  if (title) {
+
+    title.textContent =
+      iWon
+        ? '🏆 ¡Ganaste!'
+        : 'Partida terminada';
+
+  }
+
+
+  if (text) {
 
     if (
-      winner ===
-      me.uid
+      iWon
     ) {
 
-      modalTitle.textContent =
-        '🏆 ¡Ganaste!';
+      if (
+        room.game.finishReason ===
+          'sequences'
+      ) {
+
+        text.textContent =
+          '¡Conseguiste 2 secuencias y ganaste la partida!';
+
+      } else if (
+        room.game.finishReason ===
+          'forfeit'
+      ) {
+
+        text.textContent =
+          'Ganaste porque los demás jugadores abandonaron la partida.';
+
+      } else if (
+        room.game.finishReason ===
+          'disconnect'
+      ) {
+
+        text.textContent =
+          'Ganaste porque los demás jugadores se desconectaron.';
+
+      } else {
+
+        text.textContent =
+          '¡Ganaste la partida!';
+
+      }
+
 
     } else {
 
-      modalTitle.textContent =
-        'Partida terminada';
+      if (
+        room.game.finishReason ===
+          'sequences'
+      ) {
+
+        text.textContent =
+          `${winnerName} consiguió 2 secuencias y ganó la partida.`;
+
+      } else if (
+        room.game.finishReason ===
+          'forfeit'
+      ) {
+
+        text.textContent =
+          `${winnerName} ganó porque los demás jugadores abandonaron.`;
+
+      } else if (
+        room.game.finishReason ===
+          'disconnect'
+      ) {
+
+        text.textContent =
+          `${winnerName} ganó porque los demás jugadores se desconectaron.`;
+
+      } else {
+
+        text.textContent =
+          `${winnerName} ganó la partida.`;
+
+      }
 
     }
 
   }
 
-
-  /*
-    Explicación.
-  */
-
-  if (
-    modalText
-  ) {
-
-    if (!winner) {
-
-      modalText.textContent =
-        'La partida terminó.';
-
-
-    } else if (
-      reason ===
-      'forfeit'
-    ) {
-
-      modalText.textContent =
-        `${playerName(
-          room,
-          winner
-        )} ganó porque quedó como último jugador en la partida.`;
-
-
-    } else if (
-      reason ===
-      'disconnect'
-    ) {
-
-      modalText.textContent =
-        `${playerName(
-          room,
-          winner
-        )} ganó porque los demás jugadores se desconectaron.`;
-
-
-    } else {
-
-      modalText.textContent =
-        `${playerName(
-          room,
-          winner
-        )} completó 2 secuencias de cinco.`;
-
-    }
-
-  }
-
-
-  /*
-    Abrir modal.
-  */
 
   modal.classList.remove(
     'hidden'
@@ -4790,7 +5238,7 @@ function showResult(room) {
 
 
 /* =========================================================
-   VOLVER AL LOBBY DESDE RESULTADO
+   CERRAR MODAL DE RESULTADO
 ========================================================= */
 
 const modalOk =
@@ -4803,7 +5251,7 @@ if (modalOk) {
 
     'click',
 
-    () => {
+    async () => {
 
       const modal =
         $('modal');
@@ -4818,7 +5266,7 @@ if (modalOk) {
       }
 
 
-      leaveRoom();
+      await leaveRoom();
 
     }
 
@@ -4828,7 +5276,7 @@ if (modalOk) {
 
 
 /* =========================================================
-   MATCHMAKING 1 VS 1
+   MATCHMAKING PÚBLICO
 ========================================================= */
 
 const matchBtn =
@@ -4849,20 +5297,31 @@ if (matchBtn) {
       ) {
 
         status(
-          'lobbyStatus',
-          'Primero elige un nickname.'
+          'matchStatus',
+          'Primero selecciona un nickname.'
         );
-
 
         return;
 
       }
 
 
-      status(
-        'lobbyStatus',
-        'Buscando oponente…'
-      );
+      /*
+        Ya estamos en una sala.
+      */
+
+      if (
+        currentRoomCode
+      ) {
+
+        status(
+          'matchStatus',
+          'Ya estás dentro de una sala.'
+        );
+
+        return;
+
+      }
 
 
       matchBtn.classList.add(
@@ -4870,32 +5329,36 @@ if (matchBtn) {
       );
 
 
-      const cancelButton =
+      const cancelBtn =
         $('cancelMatchBtn');
 
 
-      if (
-        cancelButton
-      ) {
+      if (cancelBtn) {
 
-        cancelButton.classList.remove(
+        cancelBtn.classList.remove(
           'hidden'
         );
 
       }
 
 
-      const queueRef =
-        ref(
-          db,
-          `queue/${me.uid}`
-        );
+      status(
+        'matchStatus',
+        'Buscando oponente…'
+      );
 
 
       try {
 
+        const queueRef =
+          ref(
+            db,
+            `matchmaking/${me.uid}`
+          );
+
+
         /*
-          Agregarnos a la cola.
+          Añadirnos a la cola.
         */
 
         await set(
@@ -4909,7 +5372,7 @@ if (matchBtn) {
             name:
               displayName,
 
-            createdAt:
+            joinedAt:
               Date.now()
           }
 
@@ -4917,8 +5380,9 @@ if (matchBtn) {
 
 
         /*
-          Si cierra pestaña,
-          salir de la cola.
+          Si cerramos pestaña o perdemos
+          conexión, Firebase nos quita
+          de la cola.
         */
 
         try {
@@ -4930,7 +5394,7 @@ if (matchBtn) {
         } catch (error) {
 
           console.warn(
-            'No se pudo registrar onDisconnect en matchmaking:',
+            'No se pudo registrar onDisconnect del matchmaking:',
             error
           );
 
@@ -4938,7 +5402,8 @@ if (matchBtn) {
 
 
         /*
-          Intentar encontrar rival.
+          Intentar encontrar rival
+          inmediatamente.
         */
 
         await tryMatch();
@@ -4947,13 +5412,13 @@ if (matchBtn) {
       } catch (error) {
 
         console.error(
-          'Error iniciando matchmaking:',
+          'ERROR MATCHMAKING:',
           error
         );
 
 
         status(
-          'lobbyStatus',
+          'matchStatus',
           'No se pudo iniciar la búsqueda.'
         );
 
@@ -4980,8 +5445,15 @@ const cancelMatchBtn =
 if (cancelMatchBtn) {
 
   cancelMatchBtn.addEventListener(
+
     'click',
-    cancelMatch
+
+    async () => {
+
+      await cancelMatch();
+
+    }
+
   );
 
 }
@@ -4989,11 +5461,9 @@ if (cancelMatchBtn) {
 
 async function cancelMatch() {
 
-  /*
-    Quitar al usuario de la cola.
-  */
-
-  if (me) {
+  if (
+    me
+  ) {
 
     try {
 
@@ -5001,7 +5471,7 @@ async function cancelMatch() {
 
         ref(
           db,
-          `queue/${me.uid}`
+          `matchmaking/${me.uid}`
         )
 
       );
@@ -5009,7 +5479,7 @@ async function cancelMatch() {
     } catch (error) {
 
       console.warn(
-        'No se pudo eliminar de la cola:',
+        'No se pudo quitar usuario de matchmaking:',
         error
       );
 
@@ -5017,10 +5487,6 @@ async function cancelMatch() {
 
   }
 
-
-  /*
-    Restaurar botones.
-  */
 
   const matchButton =
     $('matchBtn');
@@ -5030,9 +5496,7 @@ async function cancelMatch() {
     $('cancelMatchBtn');
 
 
-  if (
-    matchButton
-  ) {
+  if (matchButton) {
 
     matchButton.classList.remove(
       'hidden'
@@ -5041,9 +5505,7 @@ async function cancelMatch() {
   }
 
 
-  if (
-    cancelButton
-  ) {
+  if (cancelButton) {
 
     cancelButton.classList.add(
       'hidden'
@@ -5052,28 +5514,16 @@ async function cancelMatch() {
   }
 
 
-  /*
-    Limpiar mensaje solamente
-    cuando no estamos entrando
-    a una sala.
-  */
-
-  if (
-    !currentRoomCode
-  ) {
-
-    status(
-      'lobbyStatus',
-      ''
-    );
-
-  }
+  status(
+    'matchStatus',
+    ''
+  );
 
 }
 
 
 /* =========================================================
-   BUSCAR OPONENTE
+   INTENTAR FORMAR PARTIDA 1 VS 1
 ========================================================= */
 
 async function tryMatch() {
@@ -5088,375 +5538,362 @@ async function tryMatch() {
   }
 
 
-  try {
+  /*
+    Confirmar que todavía estamos
+    dentro de la cola.
+  */
 
-    /*
-      Confirmar que nosotros
-      todavía seguimos en cola.
-    */
+  const myQueueSnap =
+    await get(
 
-    const myQueueRef =
       ref(
         db,
-        `queue/${me.uid}`
-      );
-
-
-    const myQueueSnap =
-      await get(
-        myQueueRef
-      );
-
-
-    if (
-      !myQueueSnap.exists()
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-      Obtener jugadores buscando.
-    */
-
-    const queueSnap =
-      await get(
-
-        ref(
-          db,
-          'queue'
-        )
-
-      );
-
-
-    if (
-      !queueSnap.exists()
-    ) {
-
-      status(
-        'lobbyStatus',
-        'Buscando oponente…'
-      );
-
-
-      return;
-
-    }
-
-
-    const queue =
-      queueSnap.val();
-
-
-    /*
-      Excluirnos.
-    */
-
-    const opponents =
-      Object.values(
-        queue
+        `matchmaking/${me.uid}`
       )
 
-        .filter(
-          player =>
-            player &&
-            player.uid &&
-            player.uid !==
-              me.uid
-        )
-
-        .sort(
-          (a, b) =>
-            (a.createdAt || 0) -
-            (b.createdAt || 0)
-        );
+    );
 
 
-    /*
-      Nadie disponible todavía.
-    */
+  if (
+    !myQueueSnap.exists()
+  ) {
 
-    if (
-      !opponents.length
-    ) {
+    return;
 
-      status(
-        'lobbyStatus',
-        'Buscando oponente…'
-      );
+  }
 
 
-      return;
+  const queueSnap =
+    await get(
 
-    }
+      ref(
+        db,
+        'matchmaking'
+      )
 
-
-    const other =
-      opponents[0];
-
-
-    /*
-      Para evitar que ambos jugadores
-      creen dos salas diferentes,
-      solo el UID alfabéticamente menor
-      crea la sala.
-    */
-
-    const creatorUid =
-      [
-        me.uid,
-        other.uid
-      ]
-
-        .sort()[0];
+    );
 
 
-    /*
-      El rival será quien
-      cree la sala.
-    */
+  if (
+    !queueSnap.exists()
+  ) {
 
-    if (
-      creatorUid !==
-      me.uid
-    ) {
+    return;
 
-      status(
-        'lobbyStatus',
-        'Oponente encontrado. Preparando partida…'
-      );
+  }
 
 
-      return;
+  const queue =
+    queueSnap.val() ||
+    {};
 
-    }
 
+  /*
+    Obtener rivales,
+    excluyéndonos.
+  */
 
-    /*
-      Confirmar que el rival
-      siga en cola.
-    */
+  const opponents =
+    Object.values(
+      queue
+    )
 
-    const rivalSnap =
-      await get(
+      .filter(
+        player =>
 
-        ref(
-          db,
-          `queue/${other.uid}`
-        )
+          player &&
+          player.uid &&
+          player.uid !==
+            me.uid
+
+      )
+
+      .sort(
+        (a, b) =>
+
+          (a.joinedAt || 0) -
+          (b.joinedAt || 0)
 
       );
 
 
-    if (
-      !rivalSnap.exists()
-    ) {
+  if (
+    !opponents.length
+  ) {
 
-      return;
+    return;
 
-    }
+  }
 
 
-    /* =====================================================
-       GENERAR SALA ÚNICA
-    ====================================================== */
+  const other =
+    opponents[0];
 
-    let code =
+
+  /*
+    Para impedir que LOS DOS jugadores
+    creen una sala simultáneamente,
+    solamente el UID alfabéticamente
+    menor crea la partida.
+  */
+
+  if (
+    me.uid.localeCompare(
+      other.uid
+    ) > 0
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+    Comprobar que el rival todavía
+    está esperando.
+  */
+
+  const otherQueueSnap =
+    await get(
+
+      ref(
+        db,
+        `matchmaking/${other.uid}`
+      )
+
+    );
+
+
+  if (
+    !otherQueueSnap.exists()
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+    Crear código único.
+  */
+
+  let code =
+    null;
+
+
+  for (
+    let i = 0;
+    i < 10;
+    i++
+  ) {
+
+    const candidate =
       randomCode();
 
 
-    let roomExists =
-      true;
+    const roomSnap =
+      await get(
+
+        ref(
+          db,
+          `rooms/${candidate}`
+        )
+
+      );
 
 
-    while (
-      roomExists
+    if (
+      !roomSnap.exists()
     ) {
 
-      const check =
-        await get(
+      code =
+        candidate;
 
-          ref(
-            db,
-            `rooms/${code}`
-          )
+      break;
 
-        );
+    }
 
-
-      roomExists =
-        check.exists();
+  }
 
 
-      if (
-        roomExists
-      ) {
+  if (
+    !code
+  ) {
 
-        code =
-          randomCode();
+    return;
+
+  }
+
+
+  const now =
+    Date.now();
+
+
+  /*
+    Crear sala pública 1 vs 1.
+  */
+
+  const room = {
+
+    code,
+
+    host:
+      me.uid,
+
+    status:
+      'waiting',
+
+    maxPlayers:
+      2,
+
+    matchType:
+      'public',
+
+    createdAt:
+      now,
+
+    players: {
+
+      [me.uid]: {
+
+        name:
+          displayName,
+
+        joinedAt:
+          now
+
+      },
+
+
+      [other.uid]: {
+
+        name:
+          other.name ||
+          'Jugador',
+
+        joinedAt:
+          now + 1
 
       }
 
     }
 
-
-    const now =
-      Date.now();
+  };
 
 
-    /* =====================================================
-       CREAR SALA 1 VS 1
-    ====================================================== */
+  /*
+    Antes de crear la sala volvemos
+    a confirmar que ambos siguen
+    en la cola.
+  */
 
-    const room = {
+  const [
+    mineCheck,
+    otherCheck
+  ] =
+    await Promise.all(
+      [
 
-      code,
+        get(
+          ref(
+            db,
+            `matchmaking/${me.uid}`
+          )
+        ),
 
-      host:
-        me.uid,
-
-      status:
-        'waiting',
-
-      maxPlayers:
-        2,
-
-      matchType:
-        'public',
-
-      createdAt:
-        now,
-
-      players: {
-
-        [me.uid]: {
-
-          name:
-            displayName,
-
-          joinedAt:
-            now
-
-        },
-
-
-        [other.uid]: {
-
-          name:
-            other.name ||
-            'Jugador',
-
-          joinedAt:
-            now + 1
-
-        }
-
-      }
-
-    };
-
-
-    /*
-      Crear sala.
-    */
-
-    await set(
-
-      ref(
-        db,
-        `rooms/${code}`
-      ),
-
-      room
-
-    );
-
-
-    /*
-      Sacar a ambos jugadores
-      de la cola.
-    */
-
-    await Promise.all([
-
-      remove(
-
-        ref(
-          db,
-          `queue/${me.uid}`
+        get(
+          ref(
+            db,
+            `matchmaking/${other.uid}`
+          )
         )
 
-      ),
-
-
-      remove(
-
-        ref(
-          db,
-          `queue/${other.uid}`
-        )
-
-      )
-
-    ]);
-
-
-    /*
-      Avisar al otro jugador.
-    */
-
-    await set(
-
-      ref(
-        db,
-        `matchesByUser/${other.uid}`
-      ),
-
-      {
-
-        roomCode:
-          code,
-
-        createdAt:
-          Date.now()
-
-      }
-
+      ]
     );
 
 
-    status(
-      'lobbyStatus',
-      '¡Oponente encontrado!'
-    );
+  if (
+    !mineCheck.exists() ||
+    !otherCheck.exists()
+  ) {
 
-
-    /*
-      Entrar nosotros.
-    */
-
-    await enterRoom(
-      code
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      'ERROR MATCHMAKING:',
-      error
-    );
-
-
-    status(
-      'lobbyStatus',
-      'Hubo un problema buscando oponente. Intentando nuevamente…'
-    );
+    return;
 
   }
+
+
+  /*
+    Crear sala.
+  */
+
+  await set(
+
+    ref(
+      db,
+      `rooms/${code}`
+    ),
+
+    room
+
+  );
+
+
+  /*
+    Sacar ambos jugadores
+    de la cola.
+  */
+
+  await Promise.all(
+    [
+
+      remove(
+        ref(
+          db,
+          `matchmaking/${me.uid}`
+        )
+      ),
+
+      remove(
+        ref(
+          db,
+          `matchmaking/${other.uid}`
+        )
+      )
+
+    ]
+  );
+
+
+  /*
+    Avisar al rival de la sala
+    que debe abrir.
+  */
+
+  await set(
+
+    ref(
+      db,
+      `matchesByUser/${other.uid}`
+    ),
+
+    {
+      roomCode:
+        code,
+
+      createdAt:
+        Date.now()
+    }
+
+  );
+
+
+  /*
+    Entrar nosotros.
+  */
+
+  await enterRoom(
+    code
+  );
 
 }
 
@@ -5465,33 +5902,43 @@ async function tryMatch() {
    REINTENTAR MATCHMAKING
 ========================================================= */
 
-/*
-  Mientras el botón cancelar siga
-  visible significa que seguimos
-  buscando rival.
-
-  Reintentar cada 2.5 segundos.
-*/
-
 setInterval(
 
-  () => {
+  async () => {
+
+    /*
+      Si el botón cancelar está visible,
+      significa que estamos buscando.
+    */
 
     const cancelButton =
       $('cancelMatchBtn');
 
 
     if (
-      me &&
-      !currentRoomCode &&
-      cancelButton &&
-      !cancelButton.classList
-        .contains(
-          'hidden'
-        )
+      !cancelButton ||
+      cancelButton.classList.contains(
+        'hidden'
+      ) ||
+      !me ||
+      currentRoomCode
     ) {
 
-      tryMatch();
+      return;
+
+    }
+
+
+    try {
+
+      await tryMatch();
+
+    } catch (error) {
+
+      console.warn(
+        'Reintento matchmaking:',
+        error
+      );
 
     }
 
@@ -5503,16 +5950,8 @@ setInterval(
 
 
 /* =========================================================
-   LIMPIEZA AL CERRAR PÁGINA
+   LIMPIEZA LOCAL AL CERRAR PÁGINA
 ========================================================= */
-
-/*
-  onDisconnect de Firebase se encarga
-  de las salas y cola.
-
-  Aquí solo limpiamos estado local
-  cuando corresponde.
-*/
 
 window.addEventListener(
 
@@ -5522,6 +5961,7 @@ window.addEventListener(
 
     selectedCardIndex =
       null;
+
 
     moveInFlight =
       false;
