@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="es">
+
 <head>
+
   <meta charset="utf-8">
 
   <meta
@@ -23,42 +25,62 @@
     content="index, follow"
   >
 
-  <!-- Evita cargar versiones viejas -->
+  <!-- Evitar versiones antiguas -->
   <meta
     http-equiv="Cache-Control"
     content="no-cache, no-store, must-revalidate"
   >
+
   <meta
     http-equiv="Pragma"
     content="no-cache"
   >
+
   <meta
     http-equiv="Expires"
     content="0"
   >
 
-  <title>KCequence | Juego Online</title>
+  <title>
+    KCequence | Juego Online
+  </title>
 
   <link
     rel="stylesheet"
-    href="styles.css?v=20260902-2"
+    href="styles.css?v=20260902-10"
   >
+
 </head>
+
 
 <body>
 
-  <!-- Fondo decorativo -->
+
+  <!-- =====================================================
+       FONDO
+  ====================================================== -->
+
   <div
     class="background-effects"
     aria-hidden="true"
   >
+
     <div class="bg-orb bg-orb-1"></div>
+
     <div class="bg-orb bg-orb-2"></div>
+
     <div class="bg-grid"></div>
+
   </div>
 
 
+
+  <!-- =====================================================
+       APLICACIÓN
+  ====================================================== -->
+
   <main class="app-shell">
+
 
     <!-- =====================================================
          HEADER
@@ -66,11 +88,18 @@
 
     <header class="topbar">
 
+
+      <!-- MARCA -->
+
       <div class="brand-area">
 
-        <div class="brand-mark">
+        <div
+          class="brand-mark"
+          aria-hidden="true"
+        >
           <span>KC</span>
         </div>
+
 
         <div class="brand-copy">
 
@@ -87,34 +116,63 @@
       </div>
 
 
+
+      <!-- USUARIO / CONEXIÓN -->
+
       <div class="topbar-actions">
+
 
         <div
           class="online-indicator"
-          title="Conexión online"
+          title="Conectado a KCequence"
         >
+
           <span class="online-dot"></span>
-          Online
+
+          <span>
+            Online
+          </span>
+
         </div>
+
 
         <div
           class="player-pill"
           id="playerPill"
         >
+
           <span class="player-status-dot"></span>
 
           <span>
             Conectando…
           </span>
+
         </div>
+
+
+        <!--
+          Solo aparecerá cuando estemos
+          dentro del lobby.
+        -->
+
+        <button
+          id="changePlayerBtn"
+          class="ghost change-player-btn hidden"
+          type="button"
+          title="Cambiar nombre o jugador"
+        >
+          Cambiar jugador
+        </button>
+
 
       </div>
 
     </header>
 
 
+
     <!-- =====================================================
-         LOGIN / NOMBRE
+         REGISTRO DE NOMBRE / NICKNAME
     ====================================================== -->
 
     <section
@@ -122,22 +180,30 @@
       class="panel auth-panel"
     >
 
+
       <div class="auth-badge">
         KCEQUENCE ONLINE
       </div>
 
-      <div class="auth-icon">
+
+      <div
+        class="auth-icon"
+        aria-hidden="true"
+      >
         KC
       </div>
+
 
       <h1>
         Bienvenido a KCequence
       </h1>
 
+
       <p class="auth-description">
-        Elige el nombre que verán los demás jugadores
-        durante tus partidas.
+        Elige el nombre o nickname que verán
+        los demás jugadores durante tus partidas.
       </p>
+
 
 
       <form
@@ -145,12 +211,14 @@
         class="stack"
       >
 
+
         <label
           class="field-label"
           for="nameInput"
         >
-          Nombre de jugador
+          Nombre o nickname
         </label>
+
 
         <div class="input-shell">
 
@@ -161,21 +229,50 @@
             ♟
           </span>
 
+
           <input
             id="nameInput"
+            type="text"
             maxlength="18"
-            placeholder="Ej. Kevin"
+            minlength="2"
+            placeholder="Escribe tu nombre o nickname"
             autocomplete="nickname"
+            autocapitalize="words"
+            spellcheck="false"
             required
           >
 
         </div>
 
 
+
+        <!-- NICKNAME ALEATORIO -->
+
+        <button
+          id="randomNameBtn"
+          class="ghost random-name-button"
+          type="button"
+        >
+
+          <span aria-hidden="true">
+            🎲
+          </span>
+
+          <span>
+            Generar nickname aleatorio
+          </span>
+
+        </button>
+
+
+
+        <!-- ENTRAR -->
+
         <button
           class="primary large-button"
           type="submit"
         >
+
           <span>
             Entrar al lobby
           </span>
@@ -186,16 +283,21 @@
           >
             →
           </span>
+
         </button>
 
       </form>
 
 
+
       <p class="auth-note">
         No necesitas crear una cuenta.
+        Tu nickname se guarda únicamente en este dispositivo.
       </p>
 
+
     </section>
+
 
 
     <!-- =====================================================
@@ -206,6 +308,9 @@
       id="lobbyView"
       class="hidden lobby-view"
     >
+
+
+      <!-- ENCABEZADO -->
 
       <div class="section-heading">
 
@@ -221,7 +326,7 @@
 
           <p>
             Crea una sala privada, únete con un código
-            o busca un rival automáticamente.
+            o encuentra automáticamente un rival.
           </p>
 
         </div>
@@ -229,15 +334,25 @@
       </div>
 
 
+
+      <!-- MODOS -->
+
       <div class="hero-grid">
 
-        <!-- CREAR SALA -->
+
+        <!-- =================================================
+             CREAR SALA
+        ================================================== -->
 
         <article class="panel lobby-card">
 
+
           <div class="lobby-card-top">
 
-            <div class="mode-icon private-icon">
+            <div
+              class="mode-icon private-icon"
+              aria-hidden="true"
+            >
               ♟
             </div>
 
@@ -252,14 +367,17 @@
             PARTIDA PRIVADA
           </div>
 
+
           <h2>
             Juega con amigos
           </h2>
+
 
           <p>
             Crea una sala privada para hasta
             4 jugadores y comparte el código.
           </p>
+
 
 
           <div class="feature-row">
@@ -275,11 +393,13 @@
           </div>
 
 
+
           <button
             id="createRoomBtn"
             class="primary lobby-main-button"
             type="button"
           >
+
             <span>
               Crear nueva sala
             </span>
@@ -287,18 +407,27 @@
             <span aria-hidden="true">
               +
             </span>
+
           </button>
+
 
         </article>
 
 
-        <!-- UNIRSE -->
+
+        <!-- =================================================
+             UNIRSE
+        ================================================== -->
 
         <article class="panel lobby-card">
 
+
           <div class="lobby-card-top">
 
-            <div class="mode-icon code-icon">
+            <div
+              class="mode-icon code-icon"
+              aria-hidden="true"
+            >
               #
             </div>
 
@@ -309,18 +438,22 @@
           </div>
 
 
+
           <div class="eyebrow">
             UNIRSE A SALA
           </div>
+
 
           <h2>
             ¿Ya tienes código?
           </h2>
 
+
           <p>
             Escribe el código de 6 caracteres
             que te compartió el anfitrión.
           </p>
+
 
 
           <label
@@ -331,43 +464,57 @@
           </label>
 
 
+
           <div class="join-row">
+
 
             <input
               id="roomCodeInput"
+              type="text"
               maxlength="6"
               placeholder="ABC123"
               autocomplete="off"
+              autocapitalize="characters"
               spellcheck="false"
               inputmode="text"
               aria-label="Código de sala"
             >
 
+
             <button
               id="joinRoomBtn"
-              type="button"
               class="secondary-button"
+              type="button"
             >
               Entrar
             </button>
+
 
           </div>
 
 
           <p class="input-helper">
-            Usa únicamente letras y números.
+            El código contiene 6 letras o números.
           </p>
+
 
         </article>
 
 
-        <!-- MATCHMAKING -->
+
+        <!-- =================================================
+             MATCHMAKING
+        ================================================== -->
 
         <article class="panel lobby-card accent-panel">
 
+
           <div class="lobby-card-top">
 
-            <div class="mode-icon random-icon">
+            <div
+              class="mode-icon random-icon"
+              aria-hidden="true"
+            >
               ⚔
             </div>
 
@@ -378,18 +525,22 @@
           </div>
 
 
+
           <div class="eyebrow">
             MATCHMAKING
           </div>
+
 
           <h2>
             Rival aleatorio
           </h2>
 
+
           <p>
-            Encuentra automáticamente a otro
-            jugador conectado y comienza un 1 vs 1.
+            Encuentra automáticamente a otro jugador
+            conectado y comienza una partida 1 vs 1.
           </p>
+
 
 
           <div class="feature-row">
@@ -405,11 +556,13 @@
           </div>
 
 
+
           <button
             id="matchBtn"
             class="primary lobby-main-button"
             type="button"
           >
+
             <span>
               Buscar oponente
             </span>
@@ -417,7 +570,9 @@
             <span aria-hidden="true">
               ⚔
             </span>
+
           </button>
+
 
 
           <button
@@ -428,21 +583,20 @@
             Cancelar búsqueda
           </button>
 
+
         </article>
+
 
       </div>
 
+
+
+      <!-- ESTADO DEL LOBBY -->
 
       <div
         class="status-box"
         aria-live="polite"
       >
-
-        <span
-          class="status-icon"
-          aria-hidden="true"
-        >
-        </span>
 
         <p
           class="status"
@@ -451,11 +605,13 @@
 
       </div>
 
+
     </section>
 
 
+
     <!-- =====================================================
-         SALA
+         SALA PRIVADA
     ====================================================== -->
 
     <section
@@ -463,13 +619,18 @@
       class="hidden room-view"
     >
 
+
+      <!-- INFORMACIÓN SALA -->
+
       <div class="room-head panel">
+
 
         <div class="room-information">
 
           <div class="eyebrow">
             SALA PRIVADA
           </div>
+
 
           <div class="room-code-wrapper">
 
@@ -483,6 +644,7 @@
 
           </div>
 
+
           <p id="roomSubtitle">
             Esperando jugadores…
           </p>
@@ -490,7 +652,24 @@
         </div>
 
 
+
+        <!-- ACCIONES SALA -->
+
         <div class="room-actions">
+
+
+          <!-- NUEVA MEJORA -->
+
+          <button
+            id="copyRoomCodeBtn"
+            class="ghost"
+            type="button"
+            title="Copiar código de sala"
+          >
+            Copiar código
+          </button>
+
+
 
           <button
             id="startBtn"
@@ -500,22 +679,31 @@
             ▶ Iniciar partida
           </button>
 
+
+
           <button
             id="leaveBtn"
             class="ghost danger-hover"
             type="button"
           >
-            Salir
+            Salir de sala
           </button>
 
+
         </div>
+
 
       </div>
 
 
+
+      <!-- JUGADORES -->
+
       <div class="players-section">
 
+
         <div class="players-section-head">
+
 
           <div>
 
@@ -529,11 +717,14 @@
 
           </div>
 
+
           <div class="players-capacity">
             Máximo 4
           </div>
 
+
         </div>
+
 
 
         <div
@@ -541,20 +732,17 @@
           class="players-grid"
         ></div>
 
+
       </div>
 
+
+
+      <!-- ESTADO SALA -->
 
       <div
         class="status-box"
         aria-live="polite"
       >
-
-        <span
-          class="status-icon"
-          aria-hidden="true"
-        >
-          ●
-        </span>
 
         <p
           class="status"
@@ -563,7 +751,9 @@
 
       </div>
 
+
     </section>
+
 
 
     <!-- =====================================================
@@ -575,9 +765,13 @@
       class="hidden game-layout"
     >
 
-      <!-- ESTADO PARTIDA -->
+
+      <!-- =================================================
+           INFORMACIÓN PARTIDA
+      ================================================== -->
 
       <div class="game-top panel">
+
 
         <div class="game-state">
 
@@ -597,29 +791,42 @@
         </div>
 
 
+
         <div class="game-top-actions">
 
+
           <div class="live-game-badge">
+
             <span></span>
+
             En vivo
+
           </div>
+
+
 
           <button
             id="exitGameBtn"
             class="ghost danger-hover"
             type="button"
           >
-            Salir
+            Salir de partida
           </button>
 
+
         </div>
+
 
       </div>
 
 
-      <!-- TABLERO -->
+
+      <!-- =================================================
+           TABLERO
+      ================================================== -->
 
       <div class="board-section">
+
 
         <div class="board-section-head">
 
@@ -630,7 +837,7 @@
             </div>
 
             <strong>
-              Forma dos líneas de cinco
+              Forma dos secuencias de cinco
             </strong>
 
           </div>
@@ -638,24 +845,31 @@
         </div>
 
 
+
         <div class="board-wrap panel">
 
           <div
             id="board"
             class="board"
-            aria-label="Tablero KCequence"
+            aria-label="Tablero de KCequence"
           ></div>
 
         </div>
 
+
       </div>
 
 
-      <!-- MANO -->
+
+      <!-- =================================================
+           MANO
+      ================================================== -->
 
       <div class="panel hand-panel">
 
+
         <div class="hand-title">
+
 
           <div>
 
@@ -670,6 +884,7 @@
           </div>
 
 
+
           <button
             id="deadCardBtn"
             class="ghost"
@@ -678,7 +893,9 @@
             ↻ Cambiar carta muerta
           </button>
 
+
         </div>
+
 
 
         <div
@@ -687,20 +904,17 @@
           aria-label="Tus cartas"
         ></div>
 
+
       </div>
 
+
+
+      <!-- ESTADO PARTIDA -->
 
       <div
         class="status-box game-status-box"
         aria-live="polite"
       >
-
-        <span
-          class="status-icon"
-          aria-hidden="true"
-        >
-          ●
-        </span>
 
         <p
           class="status"
@@ -709,9 +923,12 @@
 
       </div>
 
+
     </section>
 
+
   </main>
+
 
 
   <!-- =====================================================
@@ -726,24 +943,37 @@
     aria-labelledby="modalTitle"
   >
 
-    <div class="modal-backdrop"></div>
+
+    <div
+      class="modal-backdrop"
+      aria-hidden="true"
+    ></div>
+
 
 
     <div class="modal-card">
 
-      <div class="result-icon">
+
+      <div
+        class="result-icon"
+        aria-hidden="true"
+      >
         🏆
       </div>
+
 
       <div class="eyebrow">
         RESULTADO
       </div>
 
+
       <h2 id="modalTitle">
         Partida terminada
       </h2>
 
+
       <p id="modalText"></p>
+
 
 
       <button
@@ -754,15 +984,23 @@
         Volver al lobby
       </button>
 
+
     </div>
 
   </div>
 
 
+
+  <!-- =====================================================
+       JAVASCRIPT
+  ====================================================== -->
+
   <script
     type="module"
-    src="app.js?v=20260902-1"
+    src="app.js?v=20260902-20"
   ></script>
 
+
 </body>
+
 </html>

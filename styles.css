@@ -2902,3 +2902,48 @@ and (
   }
 
 }
+
+.random-name-button{
+  width:100%;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  gap:8px;
+}
+
+.change-player-btn{
+  min-height:42px;
+
+  padding:0 14px;
+
+  white-space:nowrap;
+
+  font-size:12px;
+
+  color:#cbd5e1;
+}
+
+.change-player-btn:hover{
+  color:#fff;
+
+  border-color:
+    rgba(99,102,241,.45);
+
+  background:
+    rgba(99,102,241,.09);
+}
+
+
+@media(max-width:600px){
+
+  .topbar-actions{
+    flex-wrap:wrap;
+  }
+
+  .change-player-btn{
+    width:100%;
+  }
+
+}
