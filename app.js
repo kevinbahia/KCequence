@@ -66,6 +66,15 @@ let quickChatHideTimer = null;
 let lastQuickChatId = null;
 let lastQuickChatSentAt = 0;
 
+/* =========================================================
+   JUGADA AUTOMÁTICA PARA DESCONECTADOS
+========================================================= */
+
+const AUTO_PLAY_DELAY_MS = 20000;
+
+let autoPlayTimer = null;
+let autoPlayKey = null;
+
 /*
   Una desconexión NO significa abandonar.
   El jugador conserva su lugar hasta que pulse Salir de partida.
@@ -586,11 +595,6 @@ async function checkReconnectOption() {
     }
 
 
-    /*
-      Si la sala sigue esperando o la partida sigue en curso,
-      recuperar automáticamente. No obligamos al usuario a
-      pulsar un botón después de cerrar/reabrir la app.
-    */
     if (
       room.status === 'waiting' ||
       room.status === 'playing'
@@ -720,11 +724,6 @@ if (reconnectBtn) {
           snap.val();
 
 
-        /*
-          Puede reconectar si todavía existe
-          en players O si pertenecía al turnOrder
-          original de la partida.
-        */
         const allowed =
 
           !!room.players?.[
@@ -762,12 +761,6 @@ if (reconnectBtn) {
         }
 
 
-        /*
-          Por compatibilidad con partidas antiguas:
-          si una versión anterior eliminó al jugador
-          de room.players, pero sigue dentro de
-          game.turnOrder, recuperamos su registro.
-        */
         if (
           !room.players?.[
             me.uid
@@ -797,23 +790,14 @@ if (reconnectBtn) {
 
                 'Jugador',
 
-
-              /*
-                Conservamos un orden razonable.
-                En partidas ya iniciadas el orden
-                verdadero está en game.turnOrder.
-              */
               joinedAt:
                 Date.now(),
-
 
               connected:
                 true,
 
-
               lastSeen:
                 serverTimestamp(),
-
 
               disconnectedAt:
                 null
@@ -866,7 +850,8 @@ async function recordFinishedGame(room) {
 
   if (
     !me ||
-    !room?.game?.winner ||
+    !room?.game ||
+    room.status !== 'finished' ||
     !currentRoomCode
   ) {
 
@@ -879,13 +864,6 @@ async function recordFinishedGame(room) {
     currentRoomCode;
 
 
-  /*
-    Cada revancha tiene startedAt diferente.
-
-    Antes se utilizaba solamente el código
-    de sala y una revancha podía sobrescribir
-    el resultado anterior.
-  */
   const gameId =
     `${code}_${room.game.startedAt || 0}`;
 
@@ -919,16 +897,19 @@ async function recordFinishedGame(room) {
 
       current => {
 
-        /*
-          Ya se guardó.
-        */
         if (current) {
           return;
         }
 
 
         const winnerUid =
-          room.game.winner;
+          room.game.winner ||
+          null;
+
+
+        const isDraw =
+          room.game.finishReason ===
+            'draw';
 
 
         const order =
@@ -942,50 +923,46 @@ async function recordFinishedGame(room) {
           roomCode:
             code,
 
-
           gameId,
 
-
           won:
+            !isDraw &&
             winnerUid ===
               me.uid,
 
+          draw:
+            isDraw,
 
           winnerUid,
 
-
           winnerName:
-            playerName(
-              room,
-              winnerUid
-            ),
-
+            isDraw
+              ? 'Empate'
+              : playerName(
+                  room,
+                  winnerUid
+                ),
 
           players:
             order.length,
 
-
           moves:
             room.game.moveCount ||
             0,
-
 
           sequences:
             room.game.sequences?.[
               me.uid
             ] || 0,
 
-
           finishReason:
             room.game.finishReason ||
             'unknown',
-
 
           startedAt:
             room.game.startedAt ||
             room.createdAt ||
             Date.now(),
-
 
           finishedAt:
             room.game.finishedAt ||
@@ -1102,47 +1079,23 @@ async function loadStats() {
     }
 
 
-    if (
-      $('statGames')
-    ) {
-
-      $('statGames')
-        .textContent =
-          played;
-
+    if ($('statGames')) {
+      $('statGames').textContent = played;
     }
 
 
-    if (
-      $('statWins')
-    ) {
-
-      $('statWins')
-        .textContent =
-          wins;
-
+    if ($('statWins')) {
+      $('statWins').textContent = wins;
     }
 
 
-    if (
-      $('statWinRate')
-    ) {
-
-      $('statWinRate')
-        .textContent =
-          `${winRate}%`;
-
+    if ($('statWinRate')) {
+      $('statWinRate').textContent = `${winRate}%`;
     }
 
 
-    if (
-      $('statStreak')
-    ) {
-
-      $('statStreak')
-        .textContent =
-          streak;
-
+    if ($('statStreak')) {
+      $('statStreak').textContent = streak;
     }
 
 
@@ -1188,6 +1141,12 @@ async function loadStats() {
             item.won === true;
 
 
+          const draw =
+            item.draw === true ||
+            item.finishReason ===
+              'draw';
+
+
           const opponent =
             item.winnerName ||
             'Jugador';
@@ -1197,17 +1156,21 @@ async function loadStats() {
 
             <div
               class="recent-game-item ${
-                won
-                  ? 'win'
-                  : 'loss'
+                draw
+                  ? 'draw'
+                  : won
+                    ? 'win'
+                    : 'loss'
               }"
             >
 
               <span>
                 ${
-                  won
-                    ? '✓'
-                    : '✕'
+                  draw
+                    ? '='
+                    : won
+                      ? '✓'
+                      : '✕'
                 }
               </span>
 
@@ -1216,9 +1179,11 @@ async function loadStats() {
 
                 <strong>
                   ${
-                    won
-                      ? 'Victoria'
-                      : 'Derrota'
+                    draw
+                      ? 'Empate'
+                      : won
+                        ? 'Victoria'
+                        : 'Derrota'
                   }
                 </strong>
 
@@ -1226,18 +1191,22 @@ async function loadStats() {
                 <small>
 
                   ${
-                    won
+                    draw
 
-                      ? `${
-                          item.sequences ||
-                          0
-                        }/2 secuencias`
+                      ? 'Nadie tenía movimientos posibles'
 
-                      : `Ganó ${
-                          escapeHtml(
-                            opponent
-                          )
-                        }`
+                      : won
+
+                        ? `${
+                            item.sequences ||
+                            0
+                          }/2 secuencias`
+
+                        : `Ganó ${
+                            escapeHtml(
+                              opponent
+                            )
+                          }`
                   }
 
                 </small>
@@ -1263,7 +1232,6 @@ async function loadStats() {
   }
 
 }
-
 
 /* =========================================================
    DURACIÓN
@@ -1707,10 +1675,13 @@ function shuffle(array) {
 
 function makeDeck() {
 
-  const deck =
-    [];
+  const deck = [];
 
 
+  /*
+    Cartas normales:
+    2 copias de cada carta que NO sea Jota.
+  */
   for (
     let x = 0;
     x < 2;
@@ -1727,18 +1698,55 @@ function makeDeck() {
         of RANKS
       ) {
 
-        deck.push(
+        if (
+          rank === 'J'
+        ) {
 
+          continue;
+
+        }
+
+
+        deck.push(
           cardId(
             suit,
             rank
           )
-
         );
 
       }
 
     }
+
+  }
+
+
+  /*
+    12 JOTAS EXACTAS POR PARTIDA.
+
+    6 libres:
+      3 J♥
+      3 J♦
+
+    6 para quitar ficha:
+      3 J♣
+      3 J♠
+
+    Todas se mezclan con el resto del mazo,
+    así que a quién le toquen depende de la suerte.
+  */
+  for (
+    let x = 0;
+    x < 3;
+    x++
+  ) {
+
+    deck.push(
+      cardId('H', 'J'),
+      cardId('D', 'J'),
+      cardId('C', 'J'),
+      cardId('S', 'J')
+    );
 
   }
 
@@ -3274,11 +3282,6 @@ async function registerPlayerPresence(code) {
     );
 
 
-    /*
-      Si ya existía un onDisconnect anterior,
-      cancelamos esa operación antes de registrar
-      la nueva.
-    */
     if (presenceDisconnect) {
 
       try {
@@ -3301,13 +3304,8 @@ async function registerPlayerPresence(code) {
 
 
     /*
-      Al cerrar navegador, perder señal,
-      cambiar de WiFi/datos, bloquear el teléfono,
-      etc.:
-
-      NO ELIMINAMOS AL JUGADOR.
-
-      Únicamente Firebase lo marca como desconectado.
+      Cerrar navegador o perder conexión
+      NO elimina al jugador.
     */
     presenceDisconnect =
       onDisconnect(
@@ -3397,10 +3395,6 @@ async function enterRoom(code) {
   }
 
 
-  /*
-    Primero verificamos que la sala siga existiendo
-    y que realmente pertenezcamos a ella.
-  */
   try {
 
     const initialSnap =
@@ -3469,14 +3463,6 @@ async function enterRoom(code) {
     }
 
 
-    /*
-      Compatibilidad con partidas creadas antes
-      de esta corrección.
-
-      Si el código antiguo eliminó players/uid,
-      pero el UID todavía existe en turnOrder,
-      recuperamos solamente su registro de jugador.
-    */
     if (
       !initialRoom.players?.[
         me.uid
@@ -3517,11 +3503,6 @@ async function enterRoom(code) {
 
             'Jugador',
 
-          /*
-            joinedAt ya no controla el turno
-            una vez iniciada la partida porque
-            usamos game.turnOrder.
-          */
           joinedAt:
             Date.now(),
 
@@ -3573,9 +3554,6 @@ async function enterRoom(code) {
   }
 
 
-  /*
-    Escuchar sala en tiempo real.
-  */
   roomUnsub =
     onValue(
 
@@ -3601,10 +3579,6 @@ async function enterRoom(code) {
         }
 
 
-        /*
-          Evita que un listener viejo actualice
-          otra sala después de salir.
-        */
         if (
           currentRoomCode !==
             code
@@ -3617,10 +3591,6 @@ async function enterRoom(code) {
           snap.val();
 
 
-        /*
-          Si explícitamente salimos y ya no estamos
-          en players, no intentamos regresar solos.
-        */
         const stillMember =
 
           !!currentRoom.players?.[
@@ -3688,14 +3658,6 @@ async function enterRoom(code) {
             'playing'
         ) {
 
-          /*
-            Ya NO eliminamos jugadores
-            desconectados.
-
-            Esta función ahora únicamente
-            arreglará el turno si alguien
-            abandonó explícitamente.
-          */
           await reconcileActiveGame(
             code
           );
@@ -3707,6 +3669,11 @@ async function enterRoom(code) {
 
 
           renderGame(
+            currentRoom
+          );
+
+
+          scheduleAutomaticPlay(
             currentRoom
           );
 
@@ -3768,16 +3735,6 @@ async function enterRoom(code) {
    PRESENCIA / JUGADOR PERTENECE A PARTIDA
 ========================================================= */
 
-/*
-  Antes esta función consideraba que un jugador
-  dejaba de estar activo después de 30 segundos.
-
-  AHORA:
-  connected:false NO significa abandono.
-
-  Mientras el jugador exista dentro de room.players,
-  sigue perteneciendo a la partida.
-*/
 function isPlayerStillActive(player) {
 
   return !!player;
@@ -3790,14 +3747,6 @@ function isPlayerStillActive(player) {
 ========================================================= */
 
 function getConnectedPlayerIds(room) {
-
-  /*
-    Conservamos este nombre para no tener que
-    modificar llamadas antiguas.
-
-    Pero ahora devuelve MIEMBROS de la partida,
-    no solamente personas con conexión activa.
-  */
 
   const players =
     room.players ||
@@ -3872,24 +3821,6 @@ async function reconcileActiveGame(code) {
           );
 
 
-        /*
-          IMPORTANTE:
-
-          NO hacemos esto:
-          delete room.players[uid]
-
-          aunque connected sea false.
-
-          Un jugador desconectado puede regresar
-          minutos u horas después mientras la
-          partida todavía exista.
-        */
-
-
-        /*
-          Si por alguna razón ya no queda nadie,
-          no modificamos la partida.
-        */
         if (!members.length) {
 
           return;
@@ -3897,14 +3828,18 @@ async function reconcileActiveGame(code) {
         }
 
 
-        /*
-          Si solamente queda un miembro porque
-          los demás PRESIONARON SALIR y fueron
-          removidos explícitamente, ese jugador
-          gana por abandono.
+        if (
+          members.length >= 2 &&
+          finishAsDrawIfNobodyCanMove(
+            room
+          )
+        ) {
 
-          Esto NO ocurre por perder conexión.
-        */
+          return room;
+
+        }
+
+
         if (
           members.length ===
             1
@@ -3939,16 +3874,6 @@ async function reconcileActiveGame(code) {
         }
 
 
-        /*
-          Si el jugador cuyo turno estaba activo
-          YA NO EXISTE en room.players, significa
-          que abandonó explícitamente.
-
-          Entonces avanzamos al siguiente.
-
-          connected:false NO afecta esta condición
-          porque sigue existiendo en room.players.
-        */
         if (
           !members.includes(
             room.game.turn
@@ -3984,11 +3909,6 @@ async function reconcileActiveGame(code) {
         }
 
 
-        /*
-          No hubo nada que corregir.
-          En una transacción Firebase retornar
-          undefined cancela la escritura.
-        */
         return;
 
       }
@@ -4053,21 +3973,6 @@ function getNextActivePlayerFromList(
   }
 
 
-  /*
-    Ejemplo 4 jugadores:
-
-    actual J1:
-      step 1 -> J2
-      step 2 -> J3
-      step 3 -> J4
-      step 4 -> J1
-
-    actual J4:
-      step 1 -> J1
-
-    Esto evita cualquier lógica limitada
-    solamente a jugador 1 y jugador 2.
-  */
   for (
     let step = 1;
     step <= order.length;
@@ -4251,9 +4156,6 @@ function renderRoom(room) {
   }
 
 
-  /*
-    Cantidad de jugadores.
-  */
   const roomCount =
     $('roomCount');
 
@@ -4269,9 +4171,6 @@ function renderRoom(room) {
   }
 
 
-  /*
-    Código de sala.
-  */
   const roomCode =
     $('roomCode');
 
@@ -4286,9 +4185,6 @@ function renderRoom(room) {
   }
 
 
-  /*
-    Botón comenzar.
-  */
   const startBtn =
     $('startBtn');
 
@@ -4325,9 +4221,6 @@ function renderRoom(room) {
   }
 
 
-  /*
-    Información de sala.
-  */
   const roomStatus =
     $('roomStatus');
 
@@ -4482,10 +4375,6 @@ if (shareRoomBtn) {
 
       } catch (error) {
 
-        /*
-          Si el usuario cancela el menú
-          de compartir no mostramos error.
-        */
         if (
           error?.name !==
             'AbortError'
@@ -4576,14 +4465,6 @@ if (startBtn) {
               }
 
 
-              /*
-                Se fija el orden EXACTO
-                de todos los jugadores.
-
-                Este array será utilizado durante
-                toda la partida y no dependerá
-                del estado connected.
-              */
               const ids =
                 getPlayerIds(
                   room
@@ -4610,10 +4491,6 @@ if (startBtn) {
                 {};
 
 
-              /*
-                2 jugadores = 7 cartas
-                3-4 jugadores = 6 cartas
-              */
               const handSize =
 
                 ids.length ===
@@ -4697,57 +4574,44 @@ if (startBtn) {
                 chips:
                   {},
 
-
-                /*
-                  CORRECCIÓN 3/4 JUGADORES.
-                */
                 turnOrder:
                   [...ids],
 
-
                 playerNames,
 
-
-                /*
-                  Comienza jugador 1.
-                */
                 turn:
                   ids[0],
-
 
                 winner:
                   null,
 
-
                 finishReason:
                   null,
 
-
                 sequences,
-
 
                 completedSequences:
                   {},
 
+                winningSequence:
+                  null,
+
+                winningSequenceCells:
+                  [],
 
                 moveCount:
                   0,
 
-
                 rematchNumber:
                   0,
 
-
                 startedAt,
-
 
                 finishedAt:
                   null,
 
-
                 lastMove:
                   null,
-
 
                 updatedAt:
                   startedAt
@@ -4805,7 +4669,6 @@ if (startBtn) {
 
 }
 
-
 /* =========================================================
    RENDER GENERAL DEL JUEGO
 ========================================================= */
@@ -4826,9 +4689,6 @@ function renderGame(room) {
     room.game;
 
 
-  /*
-    Código de sala dentro del juego.
-  */
   const gameRoomCode =
     $('gameRoomCode');
 
@@ -4843,33 +4703,21 @@ function renderGame(room) {
   }
 
 
-  /*
-    Panel de turno.
-  */
   renderTurnPanel(
     room
   );
 
 
-  /*
-    Tablero.
-  */
   renderBoard(
     room
   );
 
 
-  /*
-    Mano.
-  */
   renderHand(
     room
   );
 
 
-  /*
-    Chat rápido.
-  */
   ensureQuickChatUI();
 
 
@@ -4878,9 +4726,6 @@ function renderGame(room) {
   );
 
 
-  /*
-    Estado general.
-  */
   if (
     !game.winner
   ) {
@@ -5126,6 +4971,7 @@ function renderTurnPanel(room) {
 
 }
 
+
 /* =========================================================
    ESTILOS EXTRA GENERADOS POR APP.JS
 ========================================================= */
@@ -5152,10 +4998,6 @@ function ensureGameEnhancementStyles() {
 
 
   style.textContent = `
-
-    /* ==========================================
-       CARTAS DEL TABLERO MÁS LEGIBLES
-    ========================================== */
 
     .board-card-content{
       width:100%;
@@ -5222,10 +5064,6 @@ function ensureGameEnhancementStyles() {
         );
     }
 
-
-    /* ==========================================
-       JUGADORES DE SALA
-    ========================================== */
 
     .player-row{
       min-height:78px;
@@ -5308,10 +5146,6 @@ function ensureGameEnhancementStyles() {
     }
 
 
-    /* ==========================================
-       MARCADOR
-    ========================================== */
-
     .score-player{
       display:inline-flex;
       align-items:center;
@@ -5356,10 +5190,6 @@ function ensureGameEnhancementStyles() {
       border-radius:50%;
     }
 
-
-    /* ==========================================
-       MÓVIL
-    ========================================== */
 
     @media(max-width:600px){
 
@@ -5429,9 +5259,6 @@ function ensureGameEnhancementStyles() {
 }
 
 
-/*
-  Inyectamos los estilos una sola vez.
-*/
 ensureGameEnhancementStyles();
 
 
@@ -5580,10 +5407,6 @@ function renderBoard(room) {
         ];
 
 
-  /*
-    Celdas que forman parte
-    de secuencias completadas.
-  */
   const sequenceCells =
     getCompletedSequenceCells(
       game
@@ -5650,10 +5473,6 @@ function renderBoard(room) {
 
       );
 
-
-      /* =====================================================
-         CARTA DEL TABLERO MÁS GRANDE
-      ===================================================== */
 
       if (
         card === FREE
@@ -5728,10 +5547,6 @@ function renderBoard(room) {
       }
 
 
-      /* =====================================================
-         ÚLTIMA JUGADA
-      ===================================================== */
-
       if (
         lastMoveIndex ===
           index
@@ -5743,10 +5558,6 @@ function renderBoard(room) {
 
       }
 
-
-      /* =====================================================
-         FICHA
-      ===================================================== */
 
       const chipUid =
         game.chips?.[
@@ -5778,11 +5589,6 @@ function renderBoard(room) {
           );
 
 
-        /*
-          Si la ficha pertenece a
-          una secuencia completada,
-          queda protegida y resaltada.
-        */
         if (
           sequenceCells.has(
             index
@@ -5814,10 +5620,6 @@ function renderBoard(room) {
       }
 
 
-      /*
-        Las esquinas libres pueden
-        formar parte visual de secuencias.
-      */
       if (
         sequenceCells.has(
           index
@@ -5830,10 +5632,6 @@ function renderBoard(room) {
 
       }
 
-
-      /* =====================================================
-         CASILLA LEGAL
-      ===================================================== */
 
       const legal =
 
@@ -5880,11 +5678,6 @@ function renderBoard(room) {
       }
 
 
-      /*
-        Si existe carta seleccionada,
-        apagamos ligeramente casillas
-        que no pueden utilizarse.
-      */
       if (
         selectedCard &&
         !legal &&
@@ -6125,9 +5918,6 @@ function renderHand(room) {
 
         () => {
 
-          /*
-            Fuera de turno.
-          */
           if (
             !myTurn
           ) {
@@ -6151,10 +5941,6 @@ function renderHand(room) {
           }
 
 
-          /*
-            Tocar la carta seleccionada
-            nuevamente cancela selección.
-          */
           if (
             selectedCardIndex ===
               index
@@ -6224,10 +6010,6 @@ function renderHand(room) {
 
   );
 
-
-  /* =======================================================
-     AYUDA DE LA MANO
-  ======================================================= */
 
   const handHelp =
     $('handHelp');
@@ -6385,10 +6167,6 @@ function isLegalTarget(
     !!chipUid;
 
 
-  /*
-    Las esquinas libres
-    no se seleccionan.
-  */
   if (
     boardCard ===
       FREE
@@ -6405,10 +6183,6 @@ function isLegalTarget(
     );
 
 
-  /*
-    Jota libre:
-    cualquier espacio vacío.
-  */
   if (
     type ===
       'wild'
@@ -6419,9 +6193,6 @@ function isLegalTarget(
   }
 
 
-  /*
-    Jota para quitar ficha.
-  */
   if (
     type ===
       'remove'
@@ -6438,10 +6209,6 @@ function isLegalTarget(
     }
 
 
-    /*
-      No permitir quitar una ficha
-      protegida por secuencia.
-    */
     if (
 
       isChipProtectedBySequence(
@@ -6462,9 +6229,6 @@ function isLegalTarget(
   }
 
 
-  /*
-    Carta normal.
-  */
   return (
 
     !occupied
@@ -6474,6 +6238,116 @@ function isLegalTarget(
     boardCard ===
       card
 
+  );
+
+}
+
+
+/* =========================================================
+   VALIDAR CASILLA PARA CUALQUIER JUGADOR
+========================================================= */
+
+function isLegalTargetForPlayer(
+  room,
+  card,
+  index,
+  uid
+) {
+
+  const game =
+    room?.game;
+
+
+  if (
+    !game ||
+    !uid ||
+    !Number.isInteger(index)
+  ) {
+
+    return false;
+
+  }
+
+
+  if (
+    index < 0 ||
+    index >= game.board.length
+  ) {
+
+    return false;
+
+  }
+
+
+  const boardCard =
+    game.board[index];
+
+
+  const chipUid =
+    game.chips?.[index];
+
+
+  const occupied =
+    !!chipUid;
+
+
+  if (
+    boardCard === FREE
+  ) {
+
+    return false;
+
+  }
+
+
+  const type =
+    jackType(card);
+
+
+  if (
+    type === 'wild'
+  ) {
+
+    return !occupied;
+
+  }
+
+
+  if (
+    type === 'remove'
+  ) {
+
+    if (
+      !occupied ||
+      chipUid === uid
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      isChipProtectedBySequence(
+        game,
+        chipUid,
+        index
+      )
+    ) {
+
+      return false;
+
+    }
+
+
+    return true;
+
+  }
+
+
+  return (
+    !occupied &&
+    boardCard === card
   );
 
 }
@@ -6533,10 +6407,6 @@ function cellBelongsToPlayer(
     ];
 
 
-  /*
-    Las cuatro esquinas son comodines
-    para cualquier jugador.
-  */
   if (
     boardCard === FREE
   ) {
@@ -6570,7 +6440,6 @@ function sequenceKey(cells) {
     .join('-');
 
 }
-
 
 /* =========================================================
    BUSCAR SECUENCIAS CREADAS POR ÚLTIMA FICHA
@@ -6617,10 +6486,6 @@ function findSequencesCreatedByMove(
       ]
     ) => {
 
-      /*
-        Buscamos una línea larga alrededor
-        de la ficha recién colocada.
-      */
       const line =
         [];
 
@@ -6673,10 +6538,6 @@ function findSequencesCreatedByMove(
       }
 
 
-      /*
-        Dividir la línea en grupos consecutivos
-        pertenecientes al jugador.
-      */
       let segment =
         [];
 
@@ -6696,11 +6557,6 @@ function findSequencesCreatedByMove(
         }
 
 
-        /*
-          Generar ventanas de 5.
-          Solamente interesan ventanas que
-          contienen placedIndex.
-        */
         for (
           let start = 0;
           start <=
@@ -6774,9 +6630,6 @@ function findSequencesCreatedByMove(
   );
 
 
-  /*
-    Eliminar duplicados.
-  */
   const unique =
     new Map();
 
@@ -6897,9 +6750,6 @@ function registerNewSequences(
         );
 
 
-      /*
-        Ya estaba registrada.
-      */
       if (
         existingKeys.has(
           key
@@ -6911,14 +6761,6 @@ function registerNewSequences(
       }
 
 
-      /*
-        Una nueva secuencia solamente puede
-        compartir como máximo una ficha con
-        una secuencia previa.
-
-        Esto evita que una misma línea de 5
-        se cuente dos veces.
-      */
       const invalidOverlap =
         existing.some(
 
@@ -7003,6 +6845,1021 @@ function registerNewSequences(
 
 }
 
+
+/* =========================================================
+   GUARDAR DÓNDE SE GANÓ
+========================================================= */
+
+function saveWinningSequence(
+  game,
+  uid,
+  placedIndex
+) {
+
+  const completed =
+    game.completedSequences?.[
+      uid
+    ] || [];
+
+
+  const sequences =
+    completed
+
+      .filter(
+        sequence =>
+          Array.isArray(
+            sequence?.cells
+          )
+      )
+
+      .map(
+        sequence => ({
+          key:
+            sequence.key ||
+            sequenceKey(
+              sequence.cells
+            ),
+
+          cells:
+            [...sequence.cells]
+        })
+      );
+
+
+  const cells =
+    [
+      ...new Set(
+        sequences.flatMap(
+          sequence =>
+            sequence.cells
+        )
+      )
+    ];
+
+
+  game.winningSequence = {
+
+    uid,
+
+    placedIndex,
+
+    cells,
+
+    sequences
+
+  };
+
+
+  game.winningSequenceCells =
+    cells;
+
+}
+
+
+/* =========================================================
+   COMPROBAR SI UN JUGADOR TODAVÍA PUEDE HACER ALGO
+========================================================= */
+
+function playerCanStillAct(
+  room,
+  uid
+) {
+
+  const game =
+    room?.game;
+
+
+  if (
+    !game ||
+    !uid
+  ) {
+
+    return false;
+
+  }
+
+
+  const hand =
+    game.hands?.[
+      uid
+    ] || [];
+
+
+  for (
+    const card
+    of hand
+  ) {
+
+    for (
+      let index = 0;
+      index < game.board.length;
+      index++
+    ) {
+
+      if (
+        isLegalTargetForPlayer(
+          room,
+          card,
+          index,
+          uid
+        )
+      ) {
+
+        return true;
+
+      }
+
+    }
+
+  }
+
+
+  if (
+    Array.isArray(
+      game.deck
+    ) &&
+    game.deck.length
+  ) {
+
+    for (
+      const card
+      of hand
+    ) {
+
+      if (
+        isJack(
+          card
+        )
+      ) {
+
+        continue;
+
+      }
+
+
+      let hasLegalTarget =
+        false;
+
+
+      for (
+        let index = 0;
+        index < game.board.length;
+        index++
+      ) {
+
+        if (
+          isLegalTargetForPlayer(
+            room,
+            card,
+            index,
+            uid
+          )
+        ) {
+
+          hasLegalTarget =
+            true;
+
+          break;
+
+        }
+
+      }
+
+
+      if (
+        !hasLegalTarget
+      ) {
+
+        return true;
+
+      }
+
+    }
+
+  }
+
+
+  return false;
+
+}
+
+
+/* =========================================================
+   EMPATE: NADIE PUEDE REALIZAR OTRA ACCIÓN
+========================================================= */
+
+function finishAsDrawIfNobodyCanMove(
+  room
+) {
+
+  if (
+    !room ||
+    room.status !== 'playing' ||
+    !room.game ||
+    room.game.winner
+  ) {
+
+    return false;
+
+  }
+
+
+  const players =
+    getActivePlayerIds(
+      room
+    );
+
+
+  if (
+    players.length < 2
+  ) {
+
+    return false;
+
+  }
+
+
+  const somebodyCanAct =
+    players.some(
+      uid =>
+        playerCanStillAct(
+          room,
+          uid
+        )
+    );
+
+
+  if (
+    somebodyCanAct
+  ) {
+
+    return false;
+
+  }
+
+
+  const now =
+    Date.now();
+
+
+  room.game.winner =
+    null;
+
+
+  room.game.finishReason =
+    'draw';
+
+
+  room.game.finishedAt =
+    now;
+
+
+  room.game.updatedAt =
+    now;
+
+
+  room.status =
+    'finished';
+
+
+  room.updatedAt =
+    now;
+
+
+  return true;
+
+}
+
+
+/* =========================================================
+   CONTROLADOR DE JUGADAS AUTOMÁTICAS
+========================================================= */
+
+function getAutoPlayController(room) {
+
+  if (
+    !room ||
+    !me
+  ) {
+
+    return null;
+
+  }
+
+
+  const players =
+    room.players || {};
+
+
+  const hostUid =
+    room.host;
+
+
+  if (
+    hostUid &&
+    players[hostUid]?.connected === true
+  ) {
+
+    return hostUid;
+
+  }
+
+
+  const order =
+    getTurnOrder(room);
+
+
+  return (
+    order.find(
+      uid =>
+        players[uid]?.connected === true
+    ) || null
+  );
+
+}
+
+
+/* =========================================================
+   BUSCAR JUGADAS LEGALES DEL BOT
+========================================================= */
+
+function getAutomaticMoves(
+  room,
+  uid
+) {
+
+  const game =
+    room?.game;
+
+
+  if (
+    !game ||
+    !uid
+  ) {
+
+    return [];
+
+  }
+
+
+  const hand =
+    game.hands?.[uid] || [];
+
+
+  const moves =
+    [];
+
+
+  hand.forEach(
+    (card, cardIndex) => {
+
+      for (
+        let boardIndex = 0;
+        boardIndex < game.board.length;
+        boardIndex++
+      ) {
+
+        if (
+          isLegalTargetForPlayer(
+            room,
+            card,
+            boardIndex,
+            uid
+          )
+        ) {
+
+          moves.push({
+            card,
+            cardIndex,
+            boardIndex
+          });
+
+        }
+
+      }
+
+    }
+  );
+
+
+  return moves;
+
+}
+
+
+/* =========================================================
+   ELEGIR JUGADA DEL BOT
+========================================================= */
+
+function chooseAutomaticMove(
+  room,
+  uid
+) {
+
+  const moves =
+    getAutomaticMoves(
+      room,
+      uid
+    );
+
+
+  if (!moves.length) {
+
+    return null;
+
+  }
+
+
+  const moveCount =
+    Number(
+      room.game?.moveCount || 0
+    );
+
+
+  const position =
+    moveCount %
+    moves.length;
+
+
+  return moves[position];
+
+}
+
+
+/* =========================================================
+   REALIZAR JUGADA AUTOMÁTICA
+========================================================= */
+
+async function performAutomaticMove(
+  code,
+  expectedUid
+) {
+
+  if (
+    !code ||
+    !expectedUid ||
+    !me
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await runTransaction(
+
+      ref(
+        db,
+        `rooms/${code}`
+      ),
+
+      room => {
+
+        if (
+          !room ||
+          room.status !== 'playing' ||
+          !room.game ||
+          room.game.winner
+        ) {
+
+          return;
+
+        }
+
+
+        if (
+          room.game.turn !==
+            expectedUid
+        ) {
+
+          return;
+
+        }
+
+
+        const player =
+          room.players?.[
+            expectedUid
+          ];
+
+
+        if (!player) {
+
+          return;
+
+        }
+
+
+        if (
+          player.connected !== false
+        ) {
+
+          return;
+
+        }
+
+
+        const controller =
+          getAutoPlayController(
+            room
+          );
+
+
+        if (
+          controller !==
+            me.uid
+        ) {
+
+          return;
+
+        }
+
+
+        const game =
+          room.game;
+
+
+        const hand =
+          game.hands?.[
+            expectedUid
+          ];
+
+
+        if (
+          !Array.isArray(hand) ||
+          !hand.length
+        ) {
+
+          return;
+
+        }
+
+
+        const move =
+          chooseAutomaticMove(
+            room,
+            expectedUid
+          );
+
+
+        if (!move) {
+
+          const removedCard =
+            hand.shift();
+
+
+          if (
+            Array.isArray(
+              game.deck
+            ) &&
+            game.deck.length
+          ) {
+
+            const newCard =
+              game.deck.shift();
+
+
+            if (newCard) {
+
+              hand.push(
+                newCard
+              );
+
+            }
+
+          }
+
+
+          game.hands[
+            expectedUid
+          ] =
+            hand;
+
+
+          game.lastAutoAction = {
+
+            uid:
+              expectedUid,
+
+            type:
+              'dead-card',
+
+            card:
+              removedCard || null,
+
+            at:
+              Date.now()
+
+          };
+
+
+          game.updatedAt =
+            Date.now();
+
+
+          room.updatedAt =
+            Date.now();
+
+
+          return room;
+
+        }
+
+
+        const {
+          card,
+          cardIndex,
+          boardIndex
+        } =
+          move;
+
+
+        if (
+          hand[cardIndex] !==
+            card
+        ) {
+
+          return;
+
+        }
+
+
+        if (
+          !isLegalTargetForPlayer(
+            room,
+            card,
+            boardIndex,
+            expectedUid
+          )
+        ) {
+
+          return;
+
+        }
+
+
+        game.chips =
+          game.chips || {};
+
+
+        const type =
+          jackType(card);
+
+
+        if (
+          type === 'remove'
+        ) {
+
+          delete game.chips[
+            boardIndex
+          ];
+
+        } else {
+
+          game.chips[
+            boardIndex
+          ] =
+            expectedUid;
+
+        }
+
+
+        game.lastMove = {
+
+          index:
+            boardIndex,
+
+          uid:
+            expectedUid,
+
+          card,
+
+          type:
+            type || 'normal',
+
+          automatic:
+            true,
+
+          at:
+            Date.now()
+
+        };
+
+
+        hand.splice(
+          cardIndex,
+          1
+        );
+
+
+        if (
+          Array.isArray(
+            game.deck
+          ) &&
+          game.deck.length
+        ) {
+
+          const newCard =
+            game.deck.shift();
+
+
+          if (newCard) {
+
+            hand.push(
+              newCard
+            );
+
+          }
+
+        }
+
+
+        game.hands[
+          expectedUid
+        ] =
+          hand;
+
+
+        if (
+          type !== 'remove'
+        ) {
+
+          const sequenceCount =
+            registerNewSequences(
+              game,
+              expectedUid,
+              boardIndex
+            );
+
+
+          if (
+            sequenceCount >= 2
+          ) {
+
+            game.winner =
+              expectedUid;
+
+
+            game.finishReason =
+              'sequences';
+
+
+            saveWinningSequence(
+              game,
+              expectedUid,
+              boardIndex
+            );
+
+
+            game.finishedAt =
+              Date.now();
+
+
+            room.status =
+              'finished';
+
+          }
+
+        }
+
+
+        if (
+          !game.winner
+        ) {
+
+          const next =
+            getNextActivePlayer(
+              room,
+              expectedUid
+            );
+
+
+          if (next) {
+
+            game.turn =
+              next;
+
+          }
+
+        }
+
+
+        game.moveCount =
+          (
+            game.moveCount || 0
+          ) + 1;
+
+
+        game.updatedAt =
+          Date.now();
+
+
+        room.updatedAt =
+          Date.now();
+
+
+        return room;
+
+      }
+
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      'ERROR JUGADA AUTOMÁTICA:',
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   PROGRAMAR BOT PARA DESCONECTADO
+========================================================= */
+
+function scheduleAutomaticPlay(
+  room
+) {
+
+  if (
+    !room ||
+    room.status !== 'playing' ||
+    !room.game ||
+    room.game.winner ||
+    !currentRoomCode ||
+    !me
+  ) {
+
+    if (autoPlayTimer) {
+
+      clearTimeout(
+        autoPlayTimer
+      );
+
+    }
+
+
+    autoPlayTimer =
+      null;
+
+
+    autoPlayKey =
+      null;
+
+
+    return;
+
+  }
+
+
+  const turnUid =
+    room.game.turn;
+
+
+  const turnPlayer =
+    room.players?.[
+      turnUid
+    ];
+
+
+  if (!turnPlayer) {
+
+    return;
+
+  }
+
+
+  if (
+    turnPlayer.connected !== false
+  ) {
+
+    if (autoPlayTimer) {
+
+      clearTimeout(
+        autoPlayTimer
+      );
+
+    }
+
+
+    autoPlayTimer =
+      null;
+
+
+    autoPlayKey =
+      null;
+
+
+    return;
+
+  }
+
+
+  const controller =
+    getAutoPlayController(
+      room
+    );
+
+
+  if (
+    controller !==
+      me.uid
+  ) {
+
+    if (autoPlayTimer) {
+
+      clearTimeout(
+        autoPlayTimer
+      );
+
+    }
+
+
+    autoPlayTimer =
+      null;
+
+
+    autoPlayKey =
+      null;
+
+
+    return;
+
+  }
+
+
+  const key =
+    `${currentRoomCode}:${
+      turnUid
+    }:${
+      room.game.moveCount || 0
+    }`;
+
+
+  if (
+    autoPlayTimer &&
+    autoPlayKey === key
+  ) {
+
+    return;
+
+  }
+
+
+  if (autoPlayTimer) {
+
+    clearTimeout(
+      autoPlayTimer
+    );
+
+  }
+
+
+  autoPlayKey =
+    key;
+
+
+  autoPlayTimer =
+    setTimeout(
+
+      async () => {
+
+        const code =
+          currentRoomCode;
+
+
+        const uid =
+          turnUid;
+
+
+        autoPlayTimer =
+          null;
+
+
+        autoPlayKey =
+          null;
+
+
+        await performAutomaticMove(
+          code,
+          uid
+        );
+
+      },
+
+      AUTO_PLAY_DELAY_MS
+
+    );
+
+}
+
+
 /* =========================================================
    REALIZAR JUGADA
 ========================================================= */
@@ -7035,9 +7892,6 @@ async function playAt(index) {
   }
 
 
-  /*
-    Debe ser nuestro turno.
-  */
   if (
     game.turn !==
       me.uid
@@ -7062,9 +7916,6 @@ async function playAt(index) {
   }
 
 
-  /*
-    Necesitamos una carta seleccionada.
-  */
   if (
     selectedCardIndex ===
       null
@@ -7116,9 +7967,6 @@ async function playAt(index) {
   }
 
 
-  /*
-    Validación local.
-  */
   if (
 
     !isLegalTarget(
@@ -7197,10 +8045,6 @@ async function playAt(index) {
           }
 
 
-          /*
-            Confirmar turno dentro
-            de Firebase.
-          */
           if (
             txGame.turn !==
               me.uid
@@ -7211,12 +8055,6 @@ async function playAt(index) {
           }
 
 
-          /*
-            El jugador todavía debe pertenecer
-            realmente a room.players.
-
-            connected:false NO importa.
-          */
           const active =
             getActivePlayerIds(
               room
@@ -7257,10 +8095,6 @@ async function playAt(index) {
             ];
 
 
-          /*
-            La carta debe seguir siendo
-            exactamente la seleccionada.
-          */
           if (
             !card ||
             card !==
@@ -7272,10 +8106,6 @@ async function playAt(index) {
           }
 
 
-          /*
-            Validar de nuevo dentro
-            de la transacción.
-          */
           if (
 
             !isLegalTarget(
@@ -7302,10 +8132,6 @@ async function playAt(index) {
             );
 
 
-          /* =====================================================
-             JOTA PARA QUITAR FICHA
-          ===================================================== */
-
           if (
             type ===
               'remove'
@@ -7318,10 +8144,6 @@ async function playAt(index) {
 
           } else {
 
-            /* ===================================================
-               CARTA NORMAL / JOTA LIBRE
-            =================================================== */
-
             txGame.chips[
               index
             ] =
@@ -7329,10 +8151,6 @@ async function playAt(index) {
 
           }
 
-
-          /* =====================================================
-             REGISTRAR ÚLTIMA JUGADA
-          ===================================================== */
 
           txGame.lastMove = {
 
@@ -7353,19 +8171,12 @@ async function playAt(index) {
           };
 
 
-          /* =====================================================
-             GASTAR CARTA
-          ===================================================== */
-
           txHand.splice(
             selectedCardIndex,
             1
           );
 
 
-          /*
-            Robar una carta nueva.
-          */
           if (
 
             Array.isArray(
@@ -7399,10 +8210,6 @@ async function playAt(index) {
             txHand;
 
 
-          /* =====================================================
-             COMPROBAR SECUENCIAS
-          ===================================================== */
-
           if (
             type !==
               'remove'
@@ -7416,9 +8223,6 @@ async function playAt(index) {
               );
 
 
-            /*
-              Se necesitan 2 secuencias.
-            */
             if (
               sequenceCount >=
                 2
@@ -7430,6 +8234,13 @@ async function playAt(index) {
 
               txGame.finishReason =
                 'sequences';
+
+
+              saveWinningSequence(
+                txGame,
+                me.uid,
+                index
+              );
 
 
               txGame.finishedAt =
@@ -7444,35 +8255,10 @@ async function playAt(index) {
           }
 
 
-          /* =====================================================
-             SIGUIENTE TURNO
-          ===================================================== */
-
           if (
             !txGame.winner
           ) {
 
-            /*
-              CORRECCIÓN IMPORTANTE:
-
-              El orden viene de:
-
-              game.turnOrder
-
-              Ejemplo:
-              [J1, J2, J3, J4]
-
-              getNextActivePlayer() recorre:
-
-              J1 -> J2
-              J2 -> J3
-              J3 -> J4
-              J4 -> J1
-
-              Un disconnected:false sigue
-              participando porque todavía existe
-              en room.players.
-            */
             const next =
               getNextActivePlayer(
                 room,
@@ -7527,9 +8313,6 @@ async function playAt(index) {
     }
 
 
-    /*
-      Estado resultante de Firebase.
-    */
     const updatedRoom =
       result.snapshot.val();
 
@@ -7549,9 +8332,6 @@ async function playAt(index) {
         ] || 0;
 
 
-    /*
-      Sonidos.
-    */
     if (
       updatedRoom?.game?.winner ===
         me.uid
@@ -7581,9 +8361,6 @@ async function playAt(index) {
     }
 
 
-    /*
-      Aviso de nueva secuencia.
-    */
     if (
 
       sequencesAfter >
@@ -7688,9 +8465,6 @@ if (deadCardBtn) {
         currentRoom.game;
 
 
-      /*
-        Solo durante nuestro turno.
-      */
       if (
         game.turn !==
           me.uid
@@ -7742,10 +8516,6 @@ if (deadCardBtn) {
       }
 
 
-      /*
-        Las Jotas nunca son
-        cartas muertas.
-      */
       if (
         isJack(
           card
@@ -7786,10 +8556,6 @@ if (deadCardBtn) {
       }
 
 
-      /*
-        Buscar si todavía existe alguna
-        casilla libre para esa carta.
-      */
       let hasAvailableCell =
         false;
 
@@ -7904,10 +8670,6 @@ if (deadCardBtn) {
                 room.game;
 
 
-              /*
-                Confirmar que todavía
-                pertenecemos a la partida.
-              */
               const active =
                 getActivePlayerIds(
                   room
@@ -7951,10 +8713,6 @@ if (deadCardBtn) {
               }
 
 
-              /*
-                Revisar nuevamente dentro
-                de Firebase si sigue muerta.
-              */
               const stillDead =
 
                 !txGame.board.some(
@@ -8015,10 +8773,6 @@ if (deadCardBtn) {
               }
 
 
-              /*
-                Sustituir la carta en
-                la misma posición.
-              */
               txHand[
                 oldIndex
               ] =
@@ -8031,15 +8785,6 @@ if (deadCardBtn) {
                 txHand;
 
 
-              /*
-                IMPORTANTE:
-
-                Cambiar carta muerta
-                NO consume turno.
-
-                Si era turno de J3,
-                continúa siendo turno de J3.
-              */
               txGame.updatedAt =
                 Date.now();
 
@@ -8148,11 +8893,579 @@ if (deadCardBtn) {
    MOSTRAR RESULTADO
 ========================================================= */
 
+function getWinningSequenceCells(game) {
+
+  if (!game) {
+    return [];
+  }
+
+
+  if (
+    Array.isArray(
+      game.winningSequenceCells
+    ) &&
+    game.winningSequenceCells.length
+  ) {
+
+    return [
+      ...new Set(
+        game.winningSequenceCells
+      )
+    ];
+
+  }
+
+
+  if (
+    Array.isArray(
+      game.winningSequence?.cells
+    ) &&
+    game.winningSequence.cells.length
+  ) {
+
+    return [
+      ...new Set(
+        game.winningSequence.cells
+      )
+    ];
+
+  }
+
+
+  const winnerUid =
+    game.winner;
+
+
+  if (!winnerUid) {
+    return [];
+  }
+
+
+  const sequences =
+    game.completedSequences?.[
+      winnerUid
+    ] || [];
+
+
+  return [
+    ...new Set(
+
+      sequences.flatMap(
+
+        sequence =>
+
+          Array.isArray(
+            sequence?.cells
+          )
+
+            ? sequence.cells
+
+            : []
+
+      )
+
+    )
+  ];
+
+}
+
+
+/* =========================================================
+   TABLERO DE LA JUGADA GANADORA
+========================================================= */
+
+function renderWinningSequenceResult(room) {
+
+  const panel =
+    $('winningSequencePanel');
+
+
+  const board =
+    $('resultWinningBoard');
+
+
+  if (
+    !panel ||
+    !board
+  ) {
+
+    return;
+
+  }
+
+
+  const game =
+    room?.game;
+
+
+  if (
+    !game ||
+    !game.winner
+  ) {
+
+    panel.classList.add(
+      'hidden'
+    );
+
+
+    board.innerHTML =
+      '';
+
+
+    return;
+
+  }
+
+
+  const winningCells =
+    new Set(
+      getWinningSequenceCells(
+        game
+      )
+    );
+
+
+  if (
+    !winningCells.size
+  ) {
+
+    panel.classList.add(
+      'hidden'
+    );
+
+
+    board.innerHTML =
+      '';
+
+
+    return;
+
+  }
+
+
+  panel.classList.remove(
+    'hidden'
+  );
+
+
+  board.innerHTML =
+    '';
+
+
+  const placedIndex =
+
+    Number.isInteger(
+      game.winningSequence?.placedIndex
+    )
+
+      ? game.winningSequence.placedIndex
+
+      : Number.isInteger(
+          game.lastMove?.index
+        )
+
+        ? game.lastMove.index
+
+        : null;
+
+
+  game.board.forEach(
+
+    (
+      card,
+      index
+    ) => {
+
+      const cell =
+        document.createElement(
+          'div'
+        );
+
+
+      cell.className =
+        'result-board-cell';
+
+
+      if (
+        card === FREE
+      ) {
+
+        cell.classList.add(
+          'free'
+        );
+
+
+        cell.innerHTML = `
+
+          <span
+            class="result-board-free-star"
+          >
+            ★
+          </span>
+
+        `;
+
+
+      } else {
+
+        const parts =
+          getCardParts(
+            card
+          );
+
+
+        cell.innerHTML = `
+
+          <span
+            class="${
+              isRedSuit(card)
+                ? 'suit-red'
+                : ''
+            }"
+          >
+
+            ${
+              escapeHtml(
+                parts.rank
+              )
+            }${
+              escapeHtml(
+                parts.symbol
+              )
+            }
+
+          </span>
+
+        `;
+
+      }
+
+
+      if (
+        winningCells.has(
+          index
+        )
+      ) {
+
+        cell.classList.add(
+          'winning'
+        );
+
+      }
+
+
+      if (
+        placedIndex ===
+          index
+      ) {
+
+        cell.classList.add(
+          'winning-last'
+        );
+
+      }
+
+
+      const chipUid =
+        game.chips?.[
+          index
+        ];
+
+
+      if (chipUid) {
+
+        const chip =
+          document.createElement(
+            'span'
+          );
+
+
+        chip.className =
+          `result-board-chip ${
+            playerColor(
+              room,
+              chipUid
+            )
+          }`;
+
+
+        cell.appendChild(
+          chip
+        );
+
+      }
+
+
+      board.appendChild(
+        cell
+      );
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   MOSTRAR VOTOS DE REVANCHA
+========================================================= */
+
+function renderRematchVotes(room) {
+
+  const panel =
+    $('rematchVotePanel');
+
+
+  const count =
+    $('rematchVoteCount');
+
+
+  const list =
+    $('rematchVoteList');
+
+
+  const bar =
+    $('rematchVoteBar');
+
+
+  if (
+    !panel ||
+    !room
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    room.status !==
+      'finished'
+  ) {
+
+    panel.classList.add(
+      'hidden'
+    );
+
+
+    return;
+
+  }
+
+
+  panel.classList.remove(
+    'hidden'
+  );
+
+
+  /*
+    Todos los jugadores que SIGUEN dentro de
+    room.players deben aceptar la revancha.
+
+    Un jugador desconectado temporalmente sigue
+    perteneciendo a la sala, así que su voto
+    todavía cuenta como pendiente.
+
+    Solamente deja de contar si pulsa Salir y
+    es eliminado de room.players.
+  */
+  const players =
+    Object.keys(
+      room.players ||
+      {}
+    );
+
+
+  const votes =
+    room.rematchVotes ||
+    {};
+
+
+  const voted =
+    players.filter(
+      uid =>
+        votes[
+          uid
+        ] === true
+    );
+
+
+  if (count) {
+
+    count.textContent =
+      `${voted.length} / ${players.length}`;
+
+  }
+
+
+  if (bar) {
+
+    const percent =
+
+      players.length
+
+        ? Math.round(
+            (
+              voted.length /
+              players.length
+            ) * 100
+          )
+
+        : 0;
+
+
+    bar.style.width =
+      `${percent}%`;
+
+  }
+
+
+  if (list) {
+
+    list.innerHTML =
+      players.map(
+
+        uid => {
+
+          const player =
+            room.players?.[
+              uid
+            ];
+
+
+          const hasVoted =
+            votes[
+              uid
+            ] === true;
+
+
+          const connected =
+            player?.connected !==
+              false;
+
+
+          let state =
+            'Esperando';
+
+
+          if (hasVoted) {
+
+            state =
+              'Listo';
+
+
+          } else if (
+            !connected
+          ) {
+
+            state =
+              'Desconectado';
+
+          }
+
+
+          return `
+
+            <div
+              class="rematch-vote-player ${
+                hasVoted
+                  ? 'ready'
+                  : ''
+              }"
+            >
+
+              <span
+                class="rematch-vote-dot ${
+                  hasVoted
+                    ? 'ready'
+                    : connected
+                      ? 'waiting'
+                      : 'offline'
+                }"
+              ></span>
+
+
+              <span
+                class="rematch-vote-name"
+              >
+
+                ${
+                  escapeHtml(
+                    playerName(
+                      room,
+                      uid
+                    )
+                  )
+                }
+
+                ${
+                  uid ===
+                    me?.uid
+                    ? ' (Tú)'
+                    : ''
+                }
+
+              </span>
+
+
+              <strong>
+                ${state}
+              </strong>
+
+            </div>
+
+          `;
+
+        }
+
+      ).join('');
+
+  }
+
+
+  const rematchBtn =
+    $('rematchBtn');
+
+
+  if (
+    rematchBtn &&
+    me
+  ) {
+
+    const alreadyVoted =
+      votes[
+        me.uid
+      ] === true;
+
+
+    rematchBtn.disabled =
+      alreadyVoted;
+
+
+    rematchBtn.textContent =
+
+      alreadyVoted
+
+        ? '✓ Esperando a los demás'
+
+        : '↻ Revancha';
+
+  }
+
+}
+
+
+/* =========================================================
+   MODAL RESULTADO
+========================================================= */
+
 function showResult(room) {
 
   if (
     !room?.game ||
-    !room.game.winner
+    room.status !==
+      'finished'
   ) {
 
     return;
@@ -8161,7 +9474,7 @@ function showResult(room) {
 
 
   const modal =
-    $('modal');
+    $('resultModal');
 
 
   if (!modal) {
@@ -8174,290 +9487,224 @@ function showResult(room) {
 
 
   const winnerUid =
-    game.winner;
+    game.winner ||
+    null;
 
 
-  const winnerName =
-    playerName(
-      room,
-      winnerUid
-    );
+  const isDraw =
+    game.finishReason ===
+      'draw';
 
 
-  const iWon =
-
-    !!me
-
-    &&
-
+  const isWinner =
+    !!winnerUid &&
     winnerUid ===
-      me.uid;
+      me?.uid;
 
 
-  /* =======================================================
-     ICONO
-  ======================================================= */
-
-  const resultIcon =
+  const icon =
     $('resultIcon');
 
 
-  if (resultIcon) {
-
-    resultIcon.textContent =
-
-      iWon
-        ? '🏆'
-        : '🎮';
-
-  }
-
-
-  /* =======================================================
-     TÍTULO
-  ======================================================= */
-
   const title =
-    $('modalTitle');
+    $('resultTitle');
 
-
-  if (title) {
-
-    title.textContent =
-
-      iWon
-
-        ? '¡Victoria!'
-
-        : 'Partida terminada';
-
-  }
-
-
-  /* =======================================================
-     TEXTO
-  ======================================================= */
 
   const text =
-    $('modalText');
+    $('resultText');
 
 
-  if (text) {
+  if (isDraw) {
 
-    if (
-      iWon
-    ) {
+    if (icon) {
 
-      if (
-        game.finishReason ===
-          'sequences'
-      ) {
+      icon.textContent =
+        '🤝';
 
-        text.textContent =
-          '¡Conseguiste las 2 secuencias y ganaste la partida!';
+    }
 
 
-      } else if (
-        game.finishReason ===
-          'abandon'
-      ) {
+    if (title) {
 
-        text.textContent =
-          'Ganaste porque los demás jugadores abandonaron la partida.';
+      title.textContent =
+        '¡Empate!';
 
-
-      } else {
-
-        text.textContent =
-          '¡Ganaste la partida!';
-
-      }
+    }
 
 
-    } else {
+    if (text) {
 
-      if (
-        game.finishReason ===
-          'sequences'
-      ) {
+      text.textContent =
+        'Ningún jugador puede realizar otra jugada. La partida terminó en empate.';
 
-        text.textContent =
-          `${winnerName} consiguió 2 secuencias y ganó la partida.`;
+    }
 
 
-      } else if (
-        game.finishReason ===
-          'abandon'
-      ) {
+  } else if (isWinner) {
 
-        text.textContent =
-          `${winnerName} ganó porque los demás jugadores abandonaron.`;
+    if (icon) {
+
+      icon.textContent =
+        '🏆';
+
+    }
 
 
-      } else {
+    if (title) {
 
-        text.textContent =
-          `${winnerName} ganó la partida.`;
+      title.textContent =
+        '¡Ganaste!';
 
-      }
+    }
+
+
+    if (text) {
+
+      text.textContent =
+        'Completaste 2 secuencias antes que los demás jugadores.';
+
+    }
+
+
+  } else {
+
+    if (icon) {
+
+      icon.textContent =
+        '🎯';
+
+    }
+
+
+    if (title) {
+
+      title.textContent =
+        'Partida terminada';
+
+    }
+
+
+    if (text) {
+
+      text.textContent =
+        winnerUid
+
+          ? `${
+              playerName(
+                room,
+                winnerUid
+              )
+            } completó 2 secuencias y ganó la partida.`
+
+          : 'La partida terminó.';
 
     }
 
   }
 
 
-  /* =======================================================
-     ESTADÍSTICAS
-  ======================================================= */
+  if (isDraw) {
 
-  const mySequences =
-    game.sequences?.[
-      me?.uid
-    ] || 0;
+    const winningPanel =
+      $('winningSequencePanel');
 
 
-  const playerCount =
-    getTurnOrder(
+    if (winningPanel) {
+
+      winningPanel.classList.add(
+        'hidden'
+      );
+
+    }
+
+
+    const winningBoard =
+      $('resultWinningBoard');
+
+
+    if (winningBoard) {
+
+      winningBoard.innerHTML =
+        '';
+
+    }
+
+
+  } else {
+
+    renderWinningSequenceResult(
       room
-    ).length;
-
-
-  const startedAt =
-    Number(
-      game.startedAt ||
-      room.createdAt ||
-      0
-    );
-
-
-  const finishedAt =
-    Number(
-      game.finishedAt ||
-      game.updatedAt ||
-      Date.now()
-    );
-
-
-  const duration =
-    startedAt
-
-      ? finishedAt -
-          startedAt
-
-      : 0;
-
-
-  if (
-    $('resultSequences')
-  ) {
-
-    $('resultSequences')
-      .textContent =
-        `${mySequences}/2`;
-
-  }
-
-
-  if (
-    $('resultMoves')
-  ) {
-
-    $('resultMoves')
-      .textContent =
-        game.moveCount ||
-        0;
-
-  }
-
-
-  if (
-    $('resultPlayers')
-  ) {
-
-    $('resultPlayers')
-      .textContent =
-        playerCount;
-
-  }
-
-
-  if (
-    $('resultDuration')
-  ) {
-
-    $('resultDuration')
-      .textContent =
-        formatDuration(
-          duration
-        );
-
-  }
-
-
-  /*
-    Revancha solamente si quedan
-    por lo menos 2 jugadores.
-  */
-  const rematchButton =
-    $('rematchBtn');
-
-
-  if (rematchButton) {
-
-    const remainingPlayers =
-      Object.keys(
-        room.players ||
-        {}
-      ).length;
-
-
-    rematchButton.classList.toggle(
-      'hidden',
-      remainingPlayers <
-        2
-    );
-
-
-    rematchButton.disabled =
-      !!room.rematchVotes?.[
-        me?.uid
-      ];
-
-
-    rematchButton.textContent =
-
-      room.rematchVotes?.[
-        me?.uid
-      ]
-
-        ? '✓ Revancha solicitada'
-
-        : '↻ Revancha';
-
-  }
-
-
-  /*
-    Sonido solamente la primera vez
-    que aparece el modal.
-  */
-  if (
-    modal.classList.contains(
-      'hidden'
-    )
-  ) {
-
-    playSound(
-      iWon
-        ? 'win'
-        : 'lose'
     );
 
   }
+
+
+  renderRematchVotes(
+    room
+  );
 
 
   modal.classList.remove(
     'hidden'
+  );
+
+
+  modal.setAttribute(
+    'aria-hidden',
+    'false'
+  );
+
+
+  if (isDraw) {
+
+    playSound(
+      'sequence'
+    );
+
+
+  } else if (
+    isWinner
+  ) {
+
+    playSound(
+      'win'
+    );
+
+
+  } else {
+
+    playSound(
+      'lose'
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   CERRAR RESULTADO
+========================================================= */
+
+function hideResult() {
+
+  const modal =
+    $('resultModal');
+
+
+  if (!modal) {
+    return;
+  }
+
+
+  modal.classList.add(
+    'hidden'
+  );
+
+
+  modal.setAttribute(
+    'aria-hidden',
+    'true'
   );
 
 }
@@ -8479,10 +9726,7 @@ if (modalOk) {
 
     async () => {
 
-      $('modal')
-        ?.classList.add(
-          'hidden'
-        );
+      hideResult();
 
 
       await leaveRoom();
@@ -8495,17 +9739,11 @@ if (modalOk) {
 
 
 /* =========================================================
-   CREAR NUEVA PARTIDA PARA REVANCHA
+   CREAR PARTIDA DE REVANCHA
 ========================================================= */
 
-function createRematchGame(
-  room
-) {
+function createRematchGame(room) {
 
-  /*
-    Solamente los jugadores que
-    todavía siguen en room.players.
-  */
   const ids =
     getPlayerIds(
       room
@@ -8513,8 +9751,8 @@ function createRematchGame(
 
 
   if (
-    ids.length <
-      2
+    ids.length < 2 ||
+    ids.length > 4
   ) {
 
     return null;
@@ -8532,8 +9770,7 @@ function createRematchGame(
 
   const handSize =
 
-    ids.length ===
-      2
+    ids.length === 2
 
       ? 7
 
@@ -8557,10 +9794,52 @@ function createRematchGame(
   );
 
 
+  const previousOrder =
+    getTurnOrder(
+      room
+    ).filter(
+      uid =>
+        ids.includes(
+          uid
+        )
+    );
+
+
+  const missing =
+    ids.filter(
+      uid =>
+        !previousOrder.includes(
+          uid
+        )
+    );
+
+
+  let order = [
+    ...previousOrder,
+    ...missing
+  ];
+
+
+  /*
+    Para que no empiece siempre la misma persona,
+    rotamos el orden una posición en cada revancha.
+  */
+  if (
+    order.length > 1
+  ) {
+
+    order = [
+      ...order.slice(1),
+      order[0]
+    ];
+
+  }
+
+
   const playerNames =
     Object.fromEntries(
 
-      ids.map(
+      order.map(
 
         uid => [
 
@@ -8578,35 +9857,30 @@ function createRematchGame(
     );
 
 
-  const startedAt =
+  const sequences =
+    Object.fromEntries(
+
+      order.map(
+
+        uid => [
+          uid,
+          0
+        ]
+
+      )
+
+    );
+
+
+  const now =
     Date.now();
 
 
-  const nextRematchNumber =
-    (
-      room.game
-        ?.rematchNumber ||
+  const previousRematch =
+    Number(
+      room.game?.rematchNumber ||
       0
-    ) + 1;
-
-
-  /*
-    Rotar el jugador inicial.
-
-    Partida original:
-    J1 empieza
-
-    Revancha 1:
-    J2 empieza
-
-    Revancha 2:
-    J3 empieza
-
-    etc.
-  */
-  const firstPlayerIndex =
-    nextRematchNumber %
-    ids.length;
+    );
 
 
   return {
@@ -8614,83 +9888,55 @@ function createRematchGame(
     board:
       makeBoard(),
 
-
     deck,
 
-
     hands,
-
 
     chips:
       {},
 
-
-    /*
-      NUEVO ORDEN COMPLETO
-      de quienes siguen en la sala.
-    */
     turnOrder:
-      [...ids],
-
+      order,
 
     playerNames,
 
-
     turn:
-      ids[
-        firstPlayerIndex
-      ],
-
+      order[0],
 
     winner:
       null,
 
-
     finishReason:
       null,
 
-
-    sequences:
-
-      Object.fromEntries(
-
-        ids.map(
-
-          uid => [
-            uid,
-            0
-          ]
-
-        )
-
-      ),
-
+    sequences,
 
     completedSequences:
       {},
 
+    winningSequence:
+      null,
+
+    winningSequenceCells:
+      [],
 
     moveCount:
       0,
 
-
     rematchNumber:
-      nextRematchNumber,
+      previousRematch + 1,
 
-
-    startedAt,
-
+    startedAt:
+      now,
 
     finishedAt:
       null,
 
-
     lastMove:
       null,
 
-
     updatedAt:
-      startedAt
+      now
 
   };
 
@@ -8698,7 +9944,7 @@ function createRematchGame(
 
 
 /* =========================================================
-   REVANCHA
+   BOTÓN REVANCHA
 ========================================================= */
 
 const rematchBtn =
@@ -8715,7 +9961,6 @@ if (rematchBtn) {
 
       if (
         !currentRoomCode ||
-        !currentRoom ||
         !me
       ) {
 
@@ -8729,28 +9974,18 @@ if (rematchBtn) {
 
 
       rematchBtn.textContent =
-        'Esperando jugadores…';
-
-
-      status(
-        'gameStatus',
-        'Solicitaste una revancha.'
-      );
+        'Registrando voto…';
 
 
       try {
 
-        const roomRef =
-          ref(
-            db,
-            `rooms/${currentRoomCode}`
-          );
-
-
         const result =
           await runTransaction(
 
-            roomRef,
+            ref(
+              db,
+              `rooms/${currentRoomCode}`
+            ),
 
             room => {
 
@@ -8766,27 +10001,14 @@ if (rematchBtn) {
               }
 
 
-              const players =
-                Object.keys(
-                  room.players ||
-                  {}
-                );
-
-
+              /*
+                Solamente jugadores que siguen dentro
+                de la sala pueden votar.
+              */
               if (
-                !players.includes(
+                !room.players?.[
                   me.uid
-                )
-              ) {
-
-                return;
-
-              }
-
-
-              if (
-                players.length <
-                  2
+                ]
               ) {
 
                 return;
@@ -8805,11 +10027,27 @@ if (rematchBtn) {
                 true;
 
 
-              /*
-                Todos los jugadores actuales
-                deben aceptar la revancha.
-              */
-              const allAccepted =
+              const players =
+                Object.keys(
+                  room.players ||
+                  {}
+                );
+
+
+              if (
+                players.length < 2
+              ) {
+
+                room.updatedAt =
+                  Date.now();
+
+
+                return room;
+
+              }
+
+
+              const everybodyAccepted =
                 players.every(
 
                   uid =>
@@ -8821,7 +10059,7 @@ if (rematchBtn) {
 
 
               if (
-                allAccepted
+                everybodyAccepted
               ) {
 
                 const newGame =
@@ -8852,6 +10090,11 @@ if (rematchBtn) {
                 room.updatedAt =
                   Date.now();
 
+              } else {
+
+                room.updatedAt =
+                  Date.now();
+
               }
 
 
@@ -8876,56 +10119,55 @@ if (rematchBtn) {
 
           status(
             'gameStatus',
-            'No se pudo solicitar la revancha.'
+            'No se pudo registrar tu voto de revancha.'
           );
 
 
-        } else {
+          return;
 
-          const updatedRoom =
-            result.snapshot.val();
+        }
 
 
-          if (updatedRoom) {
+        const room =
+          result.snapshot.val();
 
-            currentRoom =
-              updatedRoom;
 
-          }
+        if (room) {
+
+          currentRoom =
+            room;
 
 
           if (
-            updatedRoom?.status ===
+            room.status ===
               'playing'
           ) {
 
-            $('modal')
-              ?.classList.add(
-                'hidden'
-              );
-
-
-            resultRecordedForRoom =
-              null;
+            hideResult();
 
 
             selectedCardIndex =
               null;
 
 
-            playSound(
-              'move'
+            moveInFlight =
+              false;
+
+
+            showView(
+              'gameView'
             );
 
 
             renderGame(
-              updatedRoom
+              room
             );
 
 
-            status(
-              'gameStatus',
-              '¡Comienza la revancha!'
+          } else {
+
+            renderRematchVotes(
+              room
             );
 
           }
@@ -8951,7 +10193,7 @@ if (rematchBtn) {
 
         status(
           'gameStatus',
-          'No se pudo solicitar la revancha.'
+          'No se pudo registrar la revancha.'
         );
 
       }
@@ -8962,164 +10204,8 @@ if (rematchBtn) {
 
 }
 
-
 /* =========================================================
-   MODAL CONFIRMAR SALIR
-========================================================= */
-
-function openLeaveConfirm() {
-
-  const modal =
-    $('leaveConfirmModal');
-
-
-  if (!modal) {
-
-    /*
-      Fallback por si el HTML no contiene
-      el modal todavía.
-    */
-    const accepted =
-      window.confirm(
-        '¿Salir de la partida? Si abandonas, la partida continuará sin ti.'
-      );
-
-
-    if (accepted) {
-
-      leaveRoom();
-
-    }
-
-
-    return;
-
-  }
-
-
-  modal.classList.remove(
-    'hidden'
-  );
-
-}
-
-
-function closeLeaveConfirm() {
-
-  $('leaveConfirmModal')
-    ?.classList.add(
-      'hidden'
-    );
-
-}
-
-
-/* =========================================================
-   BOTONES SALIR
-========================================================= */
-
-[
-  'leaveRoomBtn',
-  'leaveGameBtn'
-].forEach(
-
-  id => {
-
-    const button =
-      $(id);
-
-
-    if (!button) {
-      return;
-    }
-
-
-    button.addEventListener(
-
-      'click',
-
-      () => {
-
-        openLeaveConfirm();
-
-      }
-
-    );
-
-  }
-
-);
-
-
-/* =========================================================
-   CANCELAR SALIDA
-========================================================= */
-
-const cancelLeaveBtn =
-  $('cancelLeaveGameBtn');
-
-
-if (cancelLeaveBtn) {
-
-  cancelLeaveBtn.addEventListener(
-
-    'click',
-
-    () => {
-
-      closeLeaveConfirm();
-
-    }
-
-  );
-
-}
-
-
-/* =========================================================
-   CONFIRMAR SALIDA
-========================================================= */
-
-const confirmLeaveBtn =
-  $('confirmLeaveGameBtn');
-
-
-if (confirmLeaveBtn) {
-
-  confirmLeaveBtn.addEventListener(
-
-    'click',
-
-    async () => {
-
-      confirmLeaveBtn.disabled =
-        true;
-
-
-      try {
-
-        closeLeaveConfirm();
-
-
-        await leaveRoom();
-
-
-      } finally {
-
-        confirmLeaveBtn.disabled =
-          false;
-
-      }
-
-    }
-
-  );
-
-}
-
-
-/* =========================================================
-   VOLVER AL LOBBY LOCALMENTE
+   SALIR AL LOBBY
 ========================================================= */
 
 function leaveToLobby(message = '') {
@@ -9132,6 +10218,39 @@ function leaveToLobby(message = '') {
       null;
 
   }
+
+
+  if (autoPlayTimer) {
+
+    clearTimeout(
+      autoPlayTimer
+    );
+
+    autoPlayTimer =
+      null;
+
+  }
+
+
+  autoPlayKey =
+    null;
+
+
+  if (quickChatHideTimer) {
+
+    clearTimeout(
+      quickChatHideTimer
+    );
+
+    quickChatHideTimer =
+      null;
+
+  }
+
+
+  setQuickChatVisible(
+    false
+  );
 
 
   currentRoomCode =
@@ -9150,43 +10269,27 @@ function leaveToLobby(message = '') {
     false;
 
 
-  reconnectRoomCode =
+  resultRecordedForRoom =
     null;
 
 
-  lastQuickChatId =
-    null;
-
-
-  if (
-    quickChatHideTimer
-  ) {
-
-    clearTimeout(
-      quickChatHideTimer
-    );
-
-
-    quickChatHideTimer =
-      null;
-
-  }
-
-
-  $('modal')
-    ?.classList.add(
-      'hidden'
-    );
-
-
-  $('leaveConfirmModal')
-    ?.classList.add(
-      'hidden'
-    );
+  hideResult();
 
 
   showView(
     'lobbyView'
+  );
+
+
+  status(
+    'gameStatus',
+    ''
+  );
+
+
+  status(
+    'roomStatus',
+    ''
   );
 
 
@@ -9198,11 +10301,14 @@ function leaveToLobby(message = '') {
 
   loadStats();
 
+
+  checkReconnectOption();
+
 }
 
 
 /* =========================================================
-   ABANDONAR SALA EXPLÍCITAMENTE
+   SALIR EXPLÍCITAMENTE DE LA SALA
 ========================================================= */
 
 async function leaveRoom() {
@@ -9227,22 +10333,21 @@ async function leaveRoom() {
     currentRoomCode;
 
 
-  /*
-    Guardamos antes porque leaveToLobby()
-    limpia currentRoomCode.
-  */
   const uid =
     me.uid;
 
 
+  /*
+    Solamente aquí olvidamos la partida.
+
+    Cerrar navegador, recargar o perder internet
+    NO ejecuta esta función.
+  */
+  forgetActiveRoom();
+
+
   try {
 
-    /*
-      Cancelar onDisconnect de presencia.
-
-      Aquí SÍ estamos abandonando
-      de manera voluntaria.
-    */
     if (presenceDisconnect) {
 
       try {
@@ -9252,7 +10357,7 @@ async function leaveRoom() {
       } catch (error) {
 
         console.warn(
-          'No se pudo cancelar presencia:',
+          'No se pudo cancelar onDisconnect:',
           error
         );
 
@@ -9275,42 +10380,29 @@ async function leaveRoom() {
       room => {
 
         if (!room) {
+
           return;
+
         }
 
 
-        const players =
-          room.players ||
-          {};
-
-
-        /*
-          Si ya no está dentro,
-          no tenemos nada que quitar.
-        */
         if (
-          !players[
+          room.players?.[
             uid
           ]
         ) {
 
-          return room;
+          delete room.players[
+            uid
+          ];
 
         }
-
-
-        /*
-          BORRADO SOLO POR SALIDA EXPLÍCITA.
-        */
-        delete room.players[
-          uid
-        ];
 
 
         if (
           room.rematchVotes?.[
             uid
-          ] !== undefined
+          ]
         ) {
 
           delete room.rematchVotes[
@@ -9327,49 +10419,44 @@ async function leaveRoom() {
           );
 
 
-        /* =====================================================
-           YA NO QUEDA NADIE
-        ===================================================== */
-
+        /*
+          Nadie queda en la sala:
+          Firebase elimina completamente
+          la habitación.
+        */
         if (
           !remaining.length
         ) {
 
-          /*
-            Firebase elimina la sala completa
-            devolviendo null.
-          */
           return null;
 
         }
 
 
-        /* =====================================================
-           TRANSFERIR HOST
-        ===================================================== */
-
+        /*
+          Si salió el host, transferimos
+          el control al siguiente jugador
+          que todavía pertenece a la sala.
+        */
         if (
           room.host ===
             uid
         ) {
 
-          const orderedRemaining =
-
+          const order =
             getTurnOrder(
               room
-            ).filter(
-
-              playerUid =>
-                remaining.includes(
-                  playerUid
-                )
-
             );
 
 
           room.host =
 
-            orderedRemaining[0]
+            order.find(
+              playerUid =>
+                remaining.includes(
+                  playerUid
+                )
+            )
 
             ||
 
@@ -9378,15 +10465,15 @@ async function leaveRoom() {
         }
 
 
-        /* =====================================================
-           PARTIDA ACTIVA
-        ===================================================== */
-
+        /*
+          Si la partida estaba en curso
+          y solamente queda un jugador,
+          ese jugador gana por abandono.
+        */
         if (
           room.status ===
             'playing' &&
-          room.game &&
-          !room.game.winner
+          room.game
         ) {
 
           if (
@@ -9394,8 +10481,12 @@ async function leaveRoom() {
               1
           ) {
 
-            room.game.winner =
+            const winner =
               remaining[0];
+
+
+            room.game.winner =
+              winner;
 
 
             room.game.finishReason =
@@ -9406,24 +10497,23 @@ async function leaveRoom() {
               Date.now();
 
 
+            room.game.updatedAt =
+              Date.now();
+
+
             room.status =
               'finished';
-
 
           } else if (
             room.game.turn ===
               uid
           ) {
 
-            /*
-              El jugador que abandonó tenía
-              el turno. Buscar el siguiente
-              usando turnOrder original.
-            */
             const next =
-              getNextActivePlayer(
+              getNextActivePlayerFromList(
                 room,
-                uid
+                uid,
+                remaining
               );
 
 
@@ -9436,9 +10526,66 @@ async function leaveRoom() {
 
           }
 
+        }
 
-          room.game.updatedAt =
-            Date.now();
+
+        /*
+          Si estamos en pantalla final,
+          quitar a un jugador también puede
+          completar los votos de revancha.
+
+          Ejemplo:
+          3 jugadores.
+          2 votan revancha.
+          El tercero pulsa Salir.
+          Los 2 restantes ya aceptaron,
+          así que comienza la revancha.
+        */
+        if (
+          room.status ===
+            'finished' &&
+          room.game &&
+          remaining.length >=
+            2
+        ) {
+
+          const everybodyAccepted =
+            remaining.every(
+
+              playerUid =>
+                room.rematchVotes?.[
+                  playerUid
+                ] === true
+
+            );
+
+
+          if (
+            everybodyAccepted
+          ) {
+
+            const newGame =
+              createRematchGame(
+                room
+              );
+
+
+            if (newGame) {
+
+              room.game =
+                newGame;
+
+
+              room.status =
+                'playing';
+
+
+              room.rematchVotes =
+                {};
+
+            }
+
+          }
 
         }
 
@@ -9464,6 +10611,10 @@ async function leaveRoom() {
 
   } finally {
 
+    /*
+      Repetimos por seguridad porque
+      leaveToLobby() llama checkReconnectOption().
+    */
     forgetActiveRoom();
 
 
@@ -9472,6 +10623,138 @@ async function leaveRoom() {
   }
 
 }
+
+
+/* =========================================================
+   BOTONES SALIR
+========================================================= */
+
+const leaveRoomBtn =
+  $('leaveRoomBtn');
+
+
+if (leaveRoomBtn) {
+
+  leaveRoomBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      await leaveRoom();
+
+    }
+
+  );
+
+}
+
+
+const leaveGameBtn =
+  $('leaveGameBtn');
+
+
+if (leaveGameBtn) {
+
+  leaveGameBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      await leaveRoom();
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   CAMBIAR JUGADOR / NICKNAME
+========================================================= */
+
+const changePlayerBtn =
+  $('changePlayerBtn');
+
+
+if (changePlayerBtn) {
+
+  changePlayerBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      /*
+        No permitimos cambiar de jugador
+        mientras exista una sala abierta.
+      */
+      if (
+        currentRoomCode
+      ) {
+
+        return;
+
+      }
+
+
+      displayName =
+        '';
+
+
+      localStorage.removeItem(
+        'kc_name'
+      );
+
+
+      updatePlayerPill(
+        'Invitado conectado'
+      );
+
+
+      const input =
+        $('nameInput');
+
+
+      if (input) {
+
+        input.value =
+          '';
+
+      }
+
+
+      status(
+        'lobbyStatus',
+        ''
+      );
+
+
+      showView(
+        'authView'
+      );
+
+
+      setTimeout(
+
+        () => {
+
+          input?.focus();
+
+        },
+
+        50
+
+      );
+
+    }
+
+  );
+
+}
+
 
 /* =========================================================
    MATCHMAKING PÚBLICO
@@ -9491,106 +10774,64 @@ if (matchBtn) {
 
       if (
         !me ||
-        !displayName
-      ) {
-
-        status(
-          'matchStatus',
-          'Primero selecciona un nickname.'
-        );
-
-
-        return;
-
-      }
-
-
-      if (
+        !displayName ||
         currentRoomCode
       ) {
 
-        status(
-          'matchStatus',
-          'Ya estás dentro de una sala.'
-        );
-
-
         return;
 
       }
 
 
-      matchBtn.classList.add(
-        'hidden'
-      );
+      matchBtn.disabled =
+        true;
 
 
       const cancelBtn =
         $('cancelMatchBtn');
 
 
-      cancelBtn?.classList.remove(
-        'hidden'
-      );
+      if (cancelBtn) {
+
+        cancelBtn.classList.remove(
+          'hidden'
+        );
+
+      }
 
 
       status(
         'matchStatus',
-        'Buscando oponente…'
+        'Buscando rival…'
       );
 
 
       try {
 
-        const queueRef =
+        await set(
+
           ref(
             db,
             `matchmaking/${me.uid}`
-          );
-
-
-        await set(
-
-          queueRef,
+          ),
 
           {
 
             uid:
               me.uid,
 
-
             name:
               displayName,
 
+            createdAt:
+              Date.now(),
 
-            joinedAt:
-              Date.now()
+            searching:
+              true
 
           }
 
         );
-
-
-        /*
-          Si se cierra el navegador
-          mientras busca partida,
-          se elimina de la cola.
-        */
-        try {
-
-          await onDisconnect(
-            queueRef
-          ).remove();
-
-
-        } catch (error) {
-
-          console.warn(
-            'No se pudo registrar onDisconnect del matchmaking:',
-            error
-          );
-
-        }
 
 
         await tryMatch();
@@ -9610,7 +10851,17 @@ if (matchBtn) {
         );
 
 
-        await cancelMatch();
+        matchBtn.disabled =
+          false;
+
+
+        if (cancelBtn) {
+
+          cancelBtn.classList.add(
+            'hidden'
+          );
+
+        }
 
       }
 
@@ -9646,34 +10897,31 @@ if (cancelMatchBtn) {
 }
 
 
-/* =========================================================
-   CANCELAR MATCH
-========================================================= */
-
 async function cancelMatch() {
 
-  if (me) {
-
-    try {
-
-      await remove(
-
-        ref(
-          db,
-          `matchmaking/${me.uid}`
-        )
-
-      );
+  if (!me) {
+    return;
+  }
 
 
-    } catch (error) {
+  try {
 
-      console.warn(
-        'No se pudo quitar usuario de matchmaking:',
-        error
-      );
+    await remove(
 
-    }
+      ref(
+        db,
+        `matchmaking/${me.uid}`
+      )
+
+    );
+
+
+  } catch (error) {
+
+    console.warn(
+      'No se pudo cancelar matchmaking:',
+      error
+    );
 
   }
 
@@ -9682,17 +10930,16 @@ async function cancelMatch() {
     $('matchBtn');
 
 
-  const cancelButton =
-    $('cancelMatchBtn');
-
-
   if (matchButton) {
 
-    matchButton.classList.remove(
-      'hidden'
-    );
+    matchButton.disabled =
+      false;
 
   }
+
+
+  const cancelButton =
+    $('cancelMatchBtn');
 
 
   if (cancelButton) {
@@ -9713,7 +10960,7 @@ async function cancelMatch() {
 
 
 /* =========================================================
-   INTENTAR FORMAR PARTIDA 1 VS 1
+   INTENTAR ENCONTRAR RIVAL
 ========================================================= */
 
 async function tryMatch() {
@@ -9728,139 +10975,241 @@ async function tryMatch() {
   }
 
 
-  /*
-    Confirmar que todavía
-    estamos esperando.
-  */
-  const myQueueSnap =
-    await get(
+  try {
 
-      ref(
-        db,
-        `matchmaking/${me.uid}`
-      )
+    const queueSnap =
+      await get(
 
-    );
-
-
-  if (
-    !myQueueSnap.exists()
-  ) {
-
-    return;
-
-  }
-
-
-  const queueSnap =
-    await get(
-
-      ref(
-        db,
-        'matchmaking'
-      )
-
-    );
-
-
-  if (
-    !queueSnap.exists()
-  ) {
-
-    return;
-
-  }
-
-
-  const queue =
-    queueSnap.val() ||
-    {};
-
-
-  const opponents =
-    Object.values(
-      queue
-    )
-
-      .filter(
-
-        player =>
-
-          player &&
-          player.uid &&
-          player.uid !==
-            me.uid
-
-      )
-
-      .sort(
-
-        (a, b) =>
-
-          (
-            a.joinedAt ||
-            0
-          )
-
-          -
-
-          (
-            b.joinedAt ||
-            0
-          )
+        ref(
+          db,
+          'matchmaking'
+        )
 
       );
 
 
-  if (
-    !opponents.length
-  ) {
+    if (
+      !queueSnap.exists()
+    ) {
 
-    return;
+      return;
 
-  }
-
-
-  const other =
-    opponents[0];
+    }
 
 
-  /*
-    Solo uno crea la sala.
-
-    Esto evita que ambos clientes
-    creen dos salas simultáneamente.
-  */
-  if (
-
-    me.uid.localeCompare(
-      other.uid
-    ) > 0
-
-  ) {
-
-    return;
-
-  }
+    const queue =
+      queueSnap.val() ||
+      {};
 
 
-  /*
-    Confirmar que el otro jugador
-    todavía sigue esperando.
-  */
-  const otherQueueSnap =
-    await get(
-
-      ref(
-        db,
-        `matchmaking/${other.uid}`
+    const opponents =
+      Object.values(
+        queue
       )
 
+        .filter(
+
+          player =>
+
+            player?.uid &&
+
+            player.uid !==
+              me.uid &&
+
+            player.searching !==
+              false
+
+        )
+
+        .sort(
+
+          (a, b) =>
+
+            (
+              a.createdAt ||
+              0
+            )
+
+            -
+
+            (
+              b.createdAt ||
+              0
+            )
+
+        );
+
+
+    if (
+      !opponents.length
+    ) {
+
+      return;
+
+    }
+
+
+    const opponent =
+      opponents[0];
+
+
+    const pair =
+      [
+        me.uid,
+        opponent.uid
+      ].sort();
+
+
+    /*
+      Solamente uno de los dos crea la partida.
+      Así evitamos que ambos creen salas distintas.
+    */
+    if (
+      pair[0] !==
+        me.uid
+    ) {
+
+      return;
+
+    }
+
+
+    const lockId =
+      `${pair[0]}_${pair[1]}`;
+
+
+    const lockRef =
+      ref(
+        db,
+        `matchLocks/${lockId}`
+      );
+
+
+    const lockResult =
+      await runTransaction(
+
+        lockRef,
+
+        current => {
+
+          if (current) {
+
+            return;
+
+          }
+
+
+          return {
+
+            creator:
+              me.uid,
+
+            createdAt:
+              Date.now()
+
+          };
+
+        }
+
+      );
+
+
+    if (
+      !lockResult.committed
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+      Volvemos a revisar que ambos
+      sigan buscando.
+    */
+    const latestSnap =
+      await get(
+
+        ref(
+          db,
+          'matchmaking'
+        )
+
+      );
+
+
+    const latest =
+      latestSnap.val() ||
+      {};
+
+
+    const myself =
+      latest[
+        me.uid
+      ];
+
+
+    const other =
+      latest[
+        opponent.uid
+      ];
+
+
+    if (
+      !myself ||
+      !other ||
+      myself.searching === false ||
+      other.searching === false
+    ) {
+
+      await remove(
+        lockRef
+      );
+
+
+      return;
+
+    }
+
+
+    await createPublicMatch(
+      opponent.uid,
+      opponent.name ||
+      'Jugador'
     );
 
 
+    await remove(
+      lockRef
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      'ERROR BUSCANDO MATCH:',
+      error
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   CREAR PARTIDA PÚBLICA 1 VS 1
+========================================================= */
+
+async function createPublicMatch(
+  opponentUid,
+  opponentName
+) {
+
   if (
-    !otherQueueSnap.exists()
+    !me ||
+    !opponentUid ||
+    opponentUid ===
+      me.uid
   ) {
 
     return;
@@ -9868,9 +11217,6 @@ async function tryMatch() {
   }
 
 
-  /*
-    Generar código único.
-  */
   let code =
     null;
 
@@ -9881,28 +11227,27 @@ async function tryMatch() {
     i++
   ) {
 
-    const candidate =
+    const possible =
       randomCode();
 
 
-    const roomSnap =
+    const snap =
       await get(
 
         ref(
           db,
-          `rooms/${candidate}`
+          `rooms/${possible}`
         )
 
       );
 
 
     if (
-      !roomSnap.exists()
+      !snap.exists()
     ) {
 
       code =
-        candidate;
-
+        possible;
 
       break;
 
@@ -9913,7 +11258,9 @@ async function tryMatch() {
 
   if (!code) {
 
-    return;
+    throw new Error(
+      'No se pudo generar código para matchmaking.'
+    );
 
   }
 
@@ -9922,184 +11269,252 @@ async function tryMatch() {
     Date.now();
 
 
-  const room = {
+  const players = {
 
-    code,
+    [me.uid]: {
 
+      name:
+        displayName,
 
-    host:
-      me.uid,
+      joinedAt:
+        now,
 
+      connected:
+        true,
 
-    status:
-      'waiting',
+      lastSeen:
+        now
 
-
-    maxPlayers:
-      2,
-
-
-    matchType:
-      'public',
+    },
 
 
-    createdAt:
-      now,
+    [opponentUid]: {
 
+      name:
+        normalizeName(
+          opponentName
+        ) || 'Jugador',
 
-    updatedAt:
-      now,
+      joinedAt:
+        now + 1,
 
+      connected:
+        true,
 
-    players: {
-
-      [me.uid]: {
-
-        name:
-          displayName,
-
-
-        joinedAt:
-          now,
-
-
-        connected:
-          true,
-
-
-        lastSeen:
-          now
-
-      },
-
-
-      [other.uid]: {
-
-        name:
-          other.name ||
-          'Jugador',
-
-
-        joinedAt:
-          now + 1,
-
-
-        connected:
-          true,
-
-
-        lastSeen:
-          now
-
-      }
+      lastSeen:
+        now
 
     }
 
   };
 
 
-  /*
-    Volver a confirmar que ambos
-    siguen en matchmaking.
-  */
-  const [
-    mineCheck,
-    otherCheck
-  ] =
-    await Promise.all(
-      [
+  const temporaryRoom = {
 
-        get(
-          ref(
-            db,
-            `matchmaking/${me.uid}`
-          )
-        ),
+    code,
+
+    host:
+      me.uid,
+
+    status:
+      'waiting',
+
+    maxPlayers:
+      2,
+
+    matchType:
+      'public',
+
+    createdAt:
+      now,
+
+    updatedAt:
+      now,
+
+    players
+
+  };
 
 
-        get(
-          ref(
-            db,
-            `matchmaking/${other.uid}`
-          )
-        )
-
-      ]
+  const ids =
+    getPlayerIds(
+      temporaryRoom
     );
 
 
-  if (
-    !mineCheck.exists() ||
-    !otherCheck.exists()
-  ) {
-
-    return;
-
-  }
+  const deck =
+    makeDeck();
 
 
-  /*
-    Crear sala.
-  */
-  await set(
-
-    ref(
-      db,
-      `rooms/${code}`
-    ),
-
-    room
-
-  );
+  const hands =
+    {};
 
 
-  /*
-    Sacar a ambos
-    de matchmaking.
-  */
-  await Promise.all(
-    [
+  ids.forEach(
 
-      remove(
-        ref(
-          db,
-          `matchmaking/${me.uid}`
-        )
-      ),
+    uid => {
 
-
-      remove(
-        ref(
-          db,
-          `matchmaking/${other.uid}`
-        )
-      )
-
-    ]
-  );
-
-
-  /*
-    Avisar al rival.
-  */
-  await set(
-
-    ref(
-      db,
-      `matchesByUser/${other.uid}`
-    ),
-
-    {
-
-      roomCode:
-        code,
-
-
-      createdAt:
-        Date.now()
+      hands[
+        uid
+      ] =
+        deck.splice(
+          0,
+          7
+        );
 
     }
 
+  );
+
+
+  const playerNames =
+    Object.fromEntries(
+
+      ids.map(
+
+        uid => [
+
+          uid,
+
+          playerName(
+            temporaryRoom,
+            uid
+          )
+
+        ]
+
+      )
+
+    );
+
+
+  const sequences =
+    Object.fromEntries(
+
+      ids.map(
+
+        uid => [
+          uid,
+          0
+        ]
+
+      )
+
+    );
+
+
+  temporaryRoom.status =
+    'playing';
+
+
+  temporaryRoom.game = {
+
+    board:
+      makeBoard(),
+
+    deck,
+
+    hands,
+
+    chips:
+      {},
+
+    turnOrder:
+      [...ids],
+
+    playerNames,
+
+    turn:
+      ids[0],
+
+    winner:
+      null,
+
+    finishReason:
+      null,
+
+    sequences,
+
+    completedSequences:
+      {},
+
+    winningSequence:
+      null,
+
+    winningSequenceCells:
+      [],
+
+    moveCount:
+      0,
+
+    rematchNumber:
+      0,
+
+    startedAt:
+      now,
+
+    finishedAt:
+      null,
+
+    lastMove:
+      null,
+
+    updatedAt:
+      now
+
+  };
+
+
+  const updates = {};
+
+
+  updates[
+    `rooms/${code}`
+  ] =
+    temporaryRoom;
+
+
+  updates[
+    `matchesByUser/${me.uid}`
+  ] = {
+
+    roomCode:
+      code,
+
+    createdAt:
+      now
+
+  };
+
+
+  updates[
+    `matchesByUser/${opponentUid}`
+  ] = {
+
+    roomCode:
+      code,
+
+    createdAt:
+      now
+
+  };
+
+
+  updates[
+    `matchmaking/${me.uid}`
+  ] =
+    null;
+
+
+  updates[
+    `matchmaking/${opponentUid}`
+  ] =
+    null;
+
+
+  await update(
+    ref(db),
+    updates
   );
 
 
@@ -10113,7 +11528,6 @@ async function tryMatch() {
   );
 
 }
-
 
 /* =========================================================
    REINTENTAR MATCHMAKING
@@ -10243,6 +11657,7 @@ window.addEventListener(
 
 );
 
+
 /* =========================================================
    CHAT RÁPIDO
 ========================================================= */
@@ -10258,10 +11673,6 @@ function ensureQuickChatUI() {
   }
 
 
-  /* =======================================================
-     ESTILOS
-  ======================================================= */
-
   const style =
     document.createElement(
       'style'
@@ -10274,46 +11685,30 @@ function ensureQuickChatUI() {
 
   style.textContent = `
 
-    /* ==========================================
-       BOTÓN FLOTANTE
-    ========================================== */
-
     .quick-chat-button{
       position:fixed;
-
       right:18px;
       bottom:18px;
-
       width:54px;
       height:54px;
-
       display:flex;
       align-items:center;
       justify-content:center;
-
       border:none;
-
       border-radius:50%;
-
       background:
         linear-gradient(
           145deg,
           #f6c453,
           #d99d28
         );
-
       color:#111827;
-
       font-size:23px;
-
       cursor:pointer;
-
       z-index:9995;
-
       box-shadow:
         0 12px 30px
         rgba(0,0,0,.40);
-
       transition:
         transform .18s ease,
         box-shadow .18s ease,
@@ -10343,13 +11738,8 @@ function ensureQuickChatUI() {
     }
 
 
-    /* ==========================================
-       MENÚ
-    ========================================== */
-
     .quick-chat-menu{
       position:fixed;
-
       right:18px;
       bottom:82px;
 
@@ -10410,11 +11800,8 @@ function ensureQuickChatUI() {
       display:flex;
       align-items:center;
       justify-content:space-between;
-
       gap:10px;
-
       margin-bottom:10px;
-
       padding:
         2px 3px
         8px;
@@ -10423,25 +11810,20 @@ function ensureQuickChatUI() {
 
     .quick-chat-header strong{
       color:#f8fafc;
-
       font-size:13px;
     }
 
 
     .quick-chat-header small{
       color:#7f8da5;
-
       font-size:9px;
-
       letter-spacing:.08em;
-
       text-transform:uppercase;
     }
 
 
     .quick-chat-grid{
       display:grid;
-
       grid-template-columns:
         repeat(
           2,
@@ -10450,41 +11832,28 @@ function ensureQuickChatUI() {
             1fr
           )
         );
-
       gap:8px;
     }
 
 
     .quick-chat-option{
       min-height:48px;
-
       display:flex;
       align-items:center;
-
       gap:7px;
-
       padding:
         9px 10px;
-
       border:
         1px solid
         rgba(148,163,184,.14);
-
       border-radius:12px;
-
       background:
         rgba(255,255,255,.035);
-
       color:#e5e7eb;
-
       cursor:pointer;
-
       text-align:left;
-
       font-size:11px;
-
       font-weight:700;
-
       transition:
         background .16s ease,
         border-color .16s ease,
@@ -10495,10 +11864,8 @@ function ensureQuickChatUI() {
     .quick-chat-option:hover{
       background:
         rgba(244,191,79,.09);
-
       border-color:
         rgba(244,191,79,.30);
-
       transform:
         translateY(-1px);
     }
@@ -10506,14 +11873,9 @@ function ensureQuickChatUI() {
 
     .quick-chat-option span:first-child{
       flex:0 0 auto;
-
       font-size:18px;
     }
 
-
-    /* ==========================================
-       BURBUJA MENSAJE
-    ========================================== */
 
     .quick-chat-toast{
       position:fixed;
@@ -10541,47 +11903,41 @@ function ensureQuickChatUI() {
           )
         );
 
-      padding:
-        11px 14px;
-
       display:flex;
       align-items:center;
 
-      gap:10px;
+      gap:11px;
+
+      padding:
+        11px 14px;
 
       border:
         1px solid
-        rgba(244,191,79,.22);
+        rgba(244,191,79,.24);
 
-      border-radius:15px;
+      border-radius:16px;
 
       background:
         rgba(
-          10,
-          17,
-          30,
-          .95
+          11,
+          18,
+          32,
+          .96
         );
 
-      backdrop-filter:
-        blur(15px);
-
-      -webkit-backdrop-filter:
-        blur(15px);
-
       box-shadow:
-        0 16px 44px
-        rgba(0,0,0,.40);
-
-      z-index:9996;
+        0 18px 45px
+        rgba(0,0,0,.46);
 
       opacity:0;
 
       pointer-events:none;
 
+      z-index:9998;
+
       transition:
-        opacity .20s ease,
-        transform .20s ease;
+        opacity .2s ease,
+        transform .2s ease;
     }
 
 
@@ -10597,53 +11953,58 @@ function ensureQuickChatUI() {
     .quick-chat-toast-emoji{
       flex:0 0 auto;
 
-      width:36px;
-      height:36px;
+      width:38px;
+      height:38px;
 
       display:flex;
       align-items:center;
       justify-content:center;
 
-      border-radius:50%;
+      border-radius:12px;
 
       background:
         rgba(244,191,79,.10);
 
-      font-size:20px;
+      font-size:22px;
     }
 
 
-    .quick-chat-toast-content{
+    .quick-chat-toast-text{
       min-width:0;
-
-      display:flex;
-      flex-direction:column;
-
-      gap:2px;
+      flex:1;
     }
 
 
-    .quick-chat-toast-name{
+    .quick-chat-toast-text strong{
+      display:block;
+
+      margin-bottom:2px;
+
       color:#f6c453;
 
-      font-size:10px;
-
-      font-weight:800;
-
-      white-space:nowrap;
+      font-size:11px;
 
       overflow:hidden;
+
+      white-space:nowrap;
 
       text-overflow:ellipsis;
     }
 
 
-    .quick-chat-toast-text{
+    .quick-chat-toast-text span{
+      display:block;
+
       color:#f8fafc;
 
-      font-size:13px;
+      font-size:12px;
+      font-weight:700;
 
-      font-weight:800;
+      overflow:hidden;
+
+      white-space:nowrap;
+
+      text-overflow:ellipsis;
     }
 
 
@@ -10651,59 +12012,31 @@ function ensureQuickChatUI() {
 
       .quick-chat-button{
         right:12px;
-        bottom:
-          calc(
-            12px +
-            env(
-              safe-area-inset-bottom
-            )
-          );
+        bottom:12px;
 
-        width:50px;
-        height:50px;
+        width:49px;
+        height:49px;
 
-        font-size:21px;
+        font-size:20px;
       }
 
 
       .quick-chat-menu{
-        right:10px;
-
-        bottom:
-          calc(
-            72px +
-            env(
-              safe-area-inset-bottom
-            )
-          );
+        right:12px;
+        bottom:68px;
 
         width:
-          calc(
-            100vw - 20px
-          );
-      }
-
-
-      .quick-chat-grid{
-        grid-template-columns:
-          repeat(
-            2,
-            minmax(
-              0,
-              1fr
+          min(
+            300px,
+            calc(
+              100vw - 24px
             )
           );
       }
 
 
       .quick-chat-toast{
-        top:
-          calc(
-            72px +
-            env(
-              safe-area-inset-top
-            )
-          );
+        top:72px;
       }
 
     }
@@ -10716,26 +12049,26 @@ function ensureQuickChatUI() {
   );
 
 
-  /* =======================================================
-     BOTÓN
-  ======================================================= */
-
   const button =
     document.createElement(
       'button'
     );
 
 
-  button.id =
-    'quickChatButton';
-
-
   button.type =
     'button';
 
 
+  button.id =
+    'quickChatButton';
+
+
   button.className =
     'quick-chat-button hidden';
+
+
+  button.title =
+    'Chat rápido';
 
 
   button.setAttribute(
@@ -10747,15 +12080,6 @@ function ensureQuickChatUI() {
   button.textContent =
     '💬';
 
-
-  document.body.appendChild(
-    button
-  );
-
-
-  /* =======================================================
-     MENÚ
-  ======================================================= */
 
   const menu =
     document.createElement(
@@ -10773,12 +12097,20 @@ function ensureQuickChatUI() {
 
   menu.innerHTML = `
 
-    <div class="quick-chat-header">
+    <div
+      class="quick-chat-header"
+    >
 
       <div>
-        <strong>Chat rápido</strong>
-        <br>
-        <small>Mensajes predefinidos</small>
+
+        <strong>
+          Chat rápido
+        </strong>
+
+        <small>
+          Mensajes predeterminados
+        </small>
+
       </div>
 
     </div>
@@ -10786,10 +12118,100 @@ function ensureQuickChatUI() {
 
     <div
       class="quick-chat-grid"
-      id="quickChatGrid"
-    ></div>
+    >
+
+      ${
+        QUICK_CHAT_MESSAGES.map(
+
+          item => `
+
+            <button
+              type="button"
+              class="quick-chat-option"
+              data-quick-chat="${
+                escapeHtml(
+                  item.id
+                )
+              }"
+            >
+
+              <span>
+                ${
+                  escapeHtml(
+                    item.emoji
+                  )
+                }
+              </span>
+
+              <span>
+                ${
+                  escapeHtml(
+                    item.text
+                  )
+                }
+              </span>
+
+            </button>
+
+          `
+
+        ).join('')
+      }
+
+    </div>
 
   `;
+
+
+  const toast =
+    document.createElement(
+      'div'
+    );
+
+
+  toast.id =
+    'quickChatToast';
+
+
+  toast.className =
+    'quick-chat-toast';
+
+
+  toast.innerHTML = `
+
+    <div
+      class="quick-chat-toast-emoji"
+      id="quickChatToastEmoji"
+    >
+      💬
+    </div>
+
+
+    <div
+      class="quick-chat-toast-text"
+    >
+
+      <strong
+        id="quickChatToastName"
+      >
+        Jugador
+      </strong>
+
+
+      <span
+        id="quickChatToastMessage"
+      >
+        Mensaje
+      </span>
+
+    </div>
+
+  `;
+
+
+  document.body.appendChild(
+    button
+  );
 
 
   document.body.appendChild(
@@ -10797,73 +12219,8 @@ function ensureQuickChatUI() {
   );
 
 
-  const grid =
-    menu.querySelector(
-      '#quickChatGrid'
-    );
-
-
-  QUICK_CHAT_MESSAGES.forEach(
-
-    message => {
-
-      const option =
-        document.createElement(
-          'button'
-        );
-
-
-      option.type =
-        'button';
-
-
-      option.className =
-        'quick-chat-option';
-
-
-      option.innerHTML = `
-
-        <span>
-          ${message.emoji}
-        </span>
-
-        <span>
-          ${
-            escapeHtml(
-              message.text
-            )
-          }
-        </span>
-
-      `;
-
-
-      option.addEventListener(
-
-        'click',
-
-        async () => {
-
-          menu.classList.add(
-            'hidden'
-          );
-
-
-          await sendQuickChat(
-            message.id
-          );
-
-        }
-
-      );
-
-
-      grid.appendChild(
-        option
-      );
-
-    }
-
+  document.body.appendChild(
+    toast
   );
 
 
@@ -10889,9 +12246,31 @@ function ensureQuickChatUI() {
 
     'click',
 
-    event => {
+    async event => {
 
-      event.stopPropagation();
+      const option =
+        event.target.closest(
+          '[data-quick-chat]'
+        );
+
+
+      if (!option) {
+        return;
+      }
+
+
+      const messageId =
+        option.dataset.quickChat;
+
+
+      menu.classList.add(
+        'hidden'
+      );
+
+
+      await sendQuickChat(
+        messageId
+      );
 
     }
 
@@ -10902,71 +12281,31 @@ function ensureQuickChatUI() {
 
     'click',
 
-    () => {
+    event => {
 
-      menu.classList.add(
-        'hidden'
-      );
+      if (
+        !menu.contains(
+          event.target
+        )
+
+        &&
+
+        !button.contains(
+          event.target
+        )
+      ) {
+
+        menu.classList.add(
+          'hidden'
+        );
+
+      }
 
     }
 
   );
 
-
-  /* =======================================================
-     BURBUJA
-  ======================================================= */
-
-  const toast =
-    document.createElement(
-      'div'
-    );
-
-
-  toast.id =
-    'quickChatToast';
-
-
-  toast.className =
-    'quick-chat-toast';
-
-
-  toast.innerHTML = `
-
-    <span
-      class="quick-chat-toast-emoji"
-      id="quickChatToastEmoji"
-    >
-      💬
-    </span>
-
-
-    <div
-      class="quick-chat-toast-content"
-    >
-
-      <span
-        class="quick-chat-toast-name"
-        id="quickChatToastName"
-      ></span>
-
-
-      <span
-        class="quick-chat-toast-text"
-        id="quickChatToastText"
-      ></span>
-
-    </div>
-
-  `;
-
-
-  document.body.appendChild(
-    toast
-  );
-
 }
-
 
 /* =========================================================
    MOSTRAR / OCULTAR CHAT
@@ -11394,61 +12733,6 @@ leaveToLobby =
     );
 
   };
-
-
-/* =========================================================
-   CAMBIAR JUGADOR / NICKNAME
-========================================================= */
-
-const changePlayerBtn =
-  $('changePlayerBtn');
-
-
-if (changePlayerBtn) {
-
-  changePlayerBtn.addEventListener(
-
-    'click',
-
-    () => {
-
-      if (
-        currentRoomCode
-      ) {
-
-        status(
-          'lobbyStatus',
-          'Sal de la partida antes de cambiar de jugador.'
-        );
-
-
-        return;
-
-      }
-
-
-      const input =
-        $('nameInput');
-
-
-      if (input) {
-
-        input.value =
-          displayName ||
-          '';
-
-      }
-
-
-      showView(
-        'authView'
-      );
-
-    }
-
-  );
-
-}
 
 
 /* =========================================================

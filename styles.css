@@ -3717,3 +3717,375 @@ and
   }
 
 }
+/* ==========================================================
+   RESULTADO - SECUENCIA GANADORA
+========================================================== */
+
+.winning-sequence-panel{
+  margin:18px 0;
+  padding:14px;
+
+  border:
+    1px solid
+    rgba(244,191,79,.22);
+
+  border-radius:14px;
+
+  background:
+    rgba(244,191,79,.055);
+
+  text-align:left;
+}
+
+.winning-sequence-head{
+  display:flex;
+  flex-direction:column;
+
+  gap:3px;
+
+  margin-bottom:11px;
+}
+
+.winning-sequence-head span{
+  color:#f8fafc;
+
+  font-size:13px;
+  font-weight:850;
+}
+
+.winning-sequence-head small{
+  color:#93a1b5;
+
+  font-size:10px;
+  line-height:1.4;
+}
+
+.result-winning-board{
+  width:min(100%,330px);
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(10,minmax(0,1fr));
+
+  gap:2px;
+
+  margin:0 auto;
+}
+
+.result-board-cell{
+  aspect-ratio:1/1;
+
+  position:relative;
+
+  display:grid;
+  place-items:center;
+
+  overflow:hidden;
+
+  border:
+    1px solid
+    rgba(148,163,184,.16);
+
+  border-radius:3px;
+
+  background:
+    rgba(255,255,255,.055);
+}
+
+.result-board-cell.free{
+  background:
+    rgba(244,191,79,.10);
+}
+
+.result-board-cell.winning{
+  z-index:2;
+
+  border-color:
+    rgba(250,204,21,.92);
+
+  background:
+    rgba(250,204,21,.20);
+
+  box-shadow:
+    0 0 0 1px
+    rgba(250,204,21,.35),
+    0 0 9px
+    rgba(250,204,21,.38);
+
+  animation:
+    winningResultPulse
+    1.35s
+    ease-in-out
+    infinite;
+}
+
+.result-board-cell.winning-last{
+  outline:
+    2px solid
+    #fff;
+
+  outline-offset:-2px;
+}
+
+.result-board-chip{
+  width:68%;
+  height:68%;
+
+  position:absolute;
+
+  border:
+    1px solid
+    rgba(255,255,255,.42);
+
+  border-radius:50%;
+
+  box-shadow:
+    0 2px 5px
+    rgba(0,0,0,.35);
+}
+
+.result-board-chip.red{
+  background:var(--red);
+}
+
+.result-board-chip.blue{
+  background:var(--blue);
+}
+
+.result-board-chip.green{
+  background:var(--green);
+}
+
+.result-board-chip.gold{
+  background:var(--orange);
+}
+
+.result-board-free-star{
+  position:relative;
+
+  z-index:3;
+
+  color:#f4c85e;
+
+  font-size:
+    clamp(5px,1.5vw,9px);
+
+  line-height:1;
+}
+
+
+/* ==========================================================
+   RESULTADO - VOTACIÓN DE REVANCHA
+========================================================== */
+
+.rematch-vote-panel{
+  margin:17px 0 4px;
+  padding:14px;
+
+  border:
+    1px solid
+    rgba(99,102,241,.20);
+
+  border-radius:14px;
+
+  background:
+    rgba(99,102,241,.05);
+
+  text-align:left;
+}
+
+.rematch-vote-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:12px;
+
+  margin-bottom:11px;
+}
+
+.rematch-vote-head > div{
+  display:flex;
+  flex-direction:column;
+
+  gap:2px;
+}
+
+.rematch-vote-head strong{
+  color:#f8fafc;
+
+  font-size:13px;
+}
+
+.rematch-vote-head small{
+  color:#8492a7;
+
+  font-size:10px;
+}
+
+#rematchVoteCount{
+  flex:0 0 auto;
+
+  padding:5px 8px;
+
+  border-radius:999px;
+
+  background:
+    rgba(99,102,241,.12);
+
+  color:#c7d2fe;
+
+  font-size:11px;
+  font-weight:850;
+}
+
+.rematch-vote-list{
+  display:grid;
+
+  gap:7px;
+}
+
+.rematch-vote-player{
+  min-height:35px;
+
+  display:grid;
+
+  grid-template-columns:
+    auto minmax(0,1fr) auto;
+
+  align-items:center;
+
+  gap:8px;
+
+  padding:7px 9px;
+
+  border:
+    1px solid
+    rgba(148,163,184,.10);
+
+  border-radius:9px;
+
+  background:
+    rgba(255,255,255,.02);
+}
+
+.rematch-vote-player.ready{
+  border-color:
+    rgba(61,213,152,.20);
+
+  background:
+    rgba(61,213,152,.055);
+}
+
+.rematch-vote-dot{
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  background:#64748b;
+}
+
+.rematch-vote-dot.ready{
+  background:#22c55e;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(34,197,94,.10);
+}
+
+.rematch-vote-name{
+  overflow:hidden;
+
+  color:#dbe4f0;
+
+  font-size:11px;
+  font-weight:750;
+
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.rematch-vote-player small{
+  color:#7f8da3;
+
+  font-size:9px;
+}
+
+.rematch-progress{
+  height:5px;
+
+  overflow:hidden;
+
+  margin-top:10px;
+
+  border-radius:999px;
+
+  background:
+    rgba(148,163,184,.12);
+}
+
+.rematch-progress span{
+  width:0%;
+  height:100%;
+
+  display:block;
+
+  border-radius:inherit;
+
+  background:
+    linear-gradient(
+      90deg,
+      #6366f1,
+      #3dd598
+    );
+
+  transition:
+    width .25s ease;
+}
+
+.recent-game-item.draw > span{
+  color:#fde68a;
+
+  background:
+    rgba(245,158,11,.10);
+}
+
+
+@keyframes winningResultPulse{
+
+  0%,
+  100%{
+    filter:brightness(1);
+  }
+
+  50%{
+    filter:brightness(1.35);
+  }
+
+}
+
+
+@media(max-width:520px){
+
+  .winning-sequence-panel,
+  .rematch-vote-panel{
+    padding:11px;
+  }
+
+  .result-winning-board{
+    width:min(100%,280px);
+  }
+
+  .rematch-vote-player{
+    grid-template-columns:
+      auto minmax(0,1fr);
+  }
+
+  .rematch-vote-player small{
+    grid-column:
+      2;
+  }
+
+}

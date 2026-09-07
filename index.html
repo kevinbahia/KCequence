@@ -52,7 +52,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=20260902-50"
+    href="styles.css?v=20260907-02"
   >
 
 </head>
@@ -1031,12 +1031,40 @@
 
 
 
-        <div class="board-wrap panel">
+        <div class="board-table" id="boardTable">
 
           <div
-            id="board"
-            class="board"
-            aria-label="Tablero de KCequence"
+            id="boardPlayerSlot0"
+            class="board-player-slot slot-top-left"
+            aria-live="polite"
+          ></div>
+
+          <div
+            id="boardPlayerSlot1"
+            class="board-player-slot slot-top-right"
+            aria-live="polite"
+          ></div>
+
+          <div class="board-wrap panel">
+
+            <div
+              id="board"
+              class="board"
+              aria-label="Tablero de KCequence"
+            ></div>
+
+          </div>
+
+          <div
+            id="boardPlayerSlot2"
+            class="board-player-slot slot-bottom-left"
+            aria-live="polite"
+          ></div>
+
+          <div
+            id="boardPlayerSlot3"
+            class="board-player-slot slot-bottom-right"
+            aria-live="polite"
           ></div>
 
         </div>
@@ -1164,6 +1192,25 @@
 
 
       <div
+        id="winningSequencePanel"
+        class="winning-sequence-panel hidden"
+      >
+
+        <div class="winning-sequence-head">
+          <span>✨ Jugada ganadora</span>
+          <small>Las casillas iluminadas forman la secuencia final</small>
+        </div>
+
+        <div
+          id="resultWinningBoard"
+          class="result-winning-board"
+          aria-label="Vista de la secuencia ganadora"
+        ></div>
+
+      </div>
+
+
+      <div
         id="resultStats"
         class="result-stats"
       >
@@ -1223,6 +1270,32 @@
 
       </div>
 
+
+
+      <div
+        id="rematchVotePanel"
+        class="rematch-vote-panel hidden"
+      >
+
+        <div class="rematch-vote-head">
+          <div>
+            <strong>↻ Revancha</strong>
+            <small>Todos deben aceptar para volver a jugar</small>
+          </div>
+
+          <span id="rematchVoteCount">0 / 0</span>
+        </div>
+
+        <div
+          id="rematchVoteList"
+          class="rematch-vote-list"
+        ></div>
+
+        <div class="rematch-progress">
+          <span id="rematchVoteBar"></span>
+        </div>
+
+      </div>
 
 
       <div class="result-actions">
@@ -1339,7 +1412,7 @@
 
   <script
   type="module"
-  src="app.js?v=20260904-02"
+  src="app.js?v=20260907-04"
 ></script>
 
 
