@@ -9564,6 +9564,103 @@ function showResult(room) {
 
   }
 
+  /* =========================================================
+   ESTADÍSTICAS DEL RESULTADO
+========================================================= */
+
+const mySequences =
+  Number(
+    game.sequences?.[
+      me?.uid
+    ] || 0
+  );
+
+
+const totalMoves =
+  Number(
+    game.moveCount || 0
+  );
+
+
+const totalPlayers =
+  getTurnOrder(
+    room
+  ).length;
+
+
+const startedAt =
+  Number(
+    game.startedAt ||
+    room.createdAt ||
+    0
+  );
+
+
+const finishedAt =
+  Number(
+    game.finishedAt ||
+    game.updatedAt ||
+    Date.now()
+  );
+
+
+const duration =
+  startedAt > 0
+    ? Math.max(
+        0,
+        finishedAt - startedAt
+      )
+    : 0;
+
+
+const resultSequences =
+  $('resultSequences');
+
+
+const resultMoves =
+  $('resultMoves');
+
+
+const resultPlayers =
+  $('resultPlayers');
+
+
+const resultDuration =
+  $('resultDuration');
+
+
+if (resultSequences) {
+
+  resultSequences.textContent =
+    `${mySequences}/2`;
+
+}
+
+
+if (resultMoves) {
+
+  resultMoves.textContent =
+    totalMoves;
+
+}
+
+
+if (resultPlayers) {
+
+  resultPlayers.textContent =
+    totalPlayers;
+
+}
+
+
+if (resultDuration) {
+
+  resultDuration.textContent =
+    formatDuration(
+      duration
+    );
+
+}
 
   if (isDraw) {
 
