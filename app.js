@@ -7344,20 +7344,8 @@ async function performAutomaticMove(
             expectedUid
           ];
 
-
         if (!player) {
-
           return;
-
-        }
-
-
-        if (
-          player.connected !== false
-        ) {
-
-          return;
-
         }
 
 
@@ -7733,33 +7721,6 @@ function scheduleAutomaticPlay(
     return;
 
   }
-
-
-  if (
-    turnPlayer.connected !== false
-  ) {
-
-    if (autoPlayTimer) {
-
-      clearTimeout(
-        autoPlayTimer
-      );
-
-    }
-
-
-    autoPlayTimer =
-      null;
-
-
-    autoPlayKey =
-      null;
-
-
-    return;
-
-  }
-
 
   const controller =
     getAutoPlayController(
@@ -8899,71 +8860,72 @@ function getWinningSequenceCells(game) {
     return [];
   }
 
-
-  if (
-    Array.isArray(
-      game.winningSequenceCells
-    ) &&
-    game.winningSequenceCells.length
-  ) {
-
-    return [
-      ...new Set(
-        game.winningSequenceCells
-      )
-    ];
-
-  }
-
-
-  if (
-    Array.isArray(
-      game.winningSequence?.cells
-    ) &&
-    game.winningSequence.cells.length
-  ) {
-
-    return [
-      ...new Set(
-        game.winningSequence.cells
-      )
-    ];
-
-  }
-
-
   const winnerUid =
     game.winner;
-
 
   if (!winnerUid) {
     return [];
   }
 
+  const cells =
+    [];
 
-  const sequences =
+  if (
+    Array.isArray(
+      game.winningSequenceCells
+    )
+  ) {
+
+    cells.push(
+      ...game.winningSequenceCells
+    );
+
+  }
+
+  if (
+    Array.isArray(
+      game.winningSequence?.cells
+    )
+  ) {
+
+    cells.push(
+      ...game.winningSequence.cells
+    );
+
+  }
+
+  const completed =
     game.completedSequences?.[
       winnerUid
     ] || [];
 
+  if (Array.isArray(completed)) {
 
-  return [
-    ...new Set(
+    completed.forEach(
+      sequence => {
 
-      sequences.flatMap(
-
-        sequence =>
-
+        if (
           Array.isArray(
             sequence?.cells
           )
+        ) {
 
-            ? sequence.cells
+          cells.push(
+            ...sequence.cells
+          );
 
-            : []
+        }
 
-      )
+      }
+    );
 
+  }
+
+  return [
+    ...new Set(
+      cells
+        .map(Number)
+        .filter(Number.isInteger)
     )
   ];
 
