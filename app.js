@@ -5577,6 +5577,14 @@ function getCompletedSequenceCells(
    PC + ANDROID + IPHONE + TABLET
 ========================================================= */
 
+/* =========================================================
+   TAP / CLICK UNIVERSAL
+   PC + ANDROID + IPHONE + TABLET
+
+   IMPORTANTE:
+   Un arrastre / scroll NO cuenta como tap.
+========================================================= */
+
 function addUniversalTap(
   element,
   handler
@@ -5586,16 +5594,23 @@ function addUniversalTap(
     return;
   }
 
+  let startX = 0;
+  let startY = 0;
+
+  let moved = false;
   let pointerHandled = false;
 
+  /*
+    Distancia máxima permitida para
+    considerarlo un TAP real.
+  */
+  const MOVE_TOLERANCE = 10;
+
+
   element.addEventListener(
-    'pointerup',
+    'pointerdown',
     event => {
 
-      /*
-        Solo botón principal cuando
-        realmente viene de mouse.
-      */
       if (
         event.pointerType === 'mouse' &&
         event.button !== 0
@@ -5603,19 +5618,108 @@ function addUniversalTap(
         return;
       }
 
-      pointerHandled = true;
+      startX =
+        event.clientX;
+
+      startY =
+        event.clientY;
+
+      moved =
+        false;
+    }
+  );
+
+
+  element.addEventListener(
+    'pointermove',
+    event => {
+
+      const distanceX =
+        Math.abs(
+          event.clientX -
+          startX
+        );
+
+      const distanceY =
+        Math.abs(
+          event.clientY -
+          startY
+        );
+
+
+      if (
+        distanceX >
+          MOVE_TOLERANCE
+        ||
+        distanceY >
+          MOVE_TOLERANCE
+      ) {
+
+        /*
+          El usuario está desplazando
+          la mano / haciendo scroll.
+
+          NO debe seleccionar carta.
+        */
+        moved =
+          true;
+      }
+    }
+  );
+
+
+  element.addEventListener(
+    'pointerup',
+    event => {
+
+      if (
+        event.pointerType === 'mouse' &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
+
+      pointerHandled =
+        true;
+
 
       /*
-        Evita gestos/click fantasma
-        especialmente en Safari móvil.
+        Si hubo movimiento,
+        fue SCROLL y no TAP.
+      */
+      if (moved) {
+
+        setTimeout(
+          () => {
+
+            pointerHandled =
+              false;
+
+          },
+          400
+        );
+
+        return;
+      }
+
+
+      /*
+        TAP REAL.
       */
       event.preventDefault();
 
-      handler(event);
+      handler(
+        event
+      );
+
 
       setTimeout(
         () => {
-          pointerHandled = false;
+
+          pointerHandled =
+            false;
+
         },
         400
       );
@@ -5625,20 +5729,29 @@ function addUniversalTap(
     }
   );
 
+
   /*
-    Fallback para navegadores/dispositivos
-    donde Pointer Events no estén disponibles.
+    Fallback para navegadores
+    sin Pointer Events.
   */
   element.addEventListener(
     'click',
     event => {
 
-      if (pointerHandled) {
+      if (
+        pointerHandled ||
+        moved
+      ) {
+
         event.preventDefault();
+
         return;
       }
 
-      handler(event);
+
+      handler(
+        event
+      );
     }
   );
 }
