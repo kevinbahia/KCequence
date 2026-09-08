@@ -6212,8 +6212,13 @@ function renderHand(room) {
             selectedCardIndex =
               previousSelectedCardIndex;
 
-            renderBoard(room);
-            renderHand(room);
+            renderBoard(
+              currentRoom || room
+            );
+
+            renderHand(
+              currentRoom || room
+            );
 
             status(
               'gameStatus',
@@ -6225,10 +6230,24 @@ function renderHand(room) {
 
 
           /*
-            MUY IMPORTANTE:
-            Ya NO volvemos a comprobar
-            selectedCardIndex === index aquí.
+            Firebase ya confirmó que seguimos teniendo
+            el turno y que tomamos control manual.
+
+            IMPORTANTE:
+            volvemos a dibujar usando currentRoom,
+            no el objeto "room" anterior.
           */
+          const freshRoom =
+            currentRoom || room;
+
+          renderBoard(
+            freshRoom
+          );
+
+          renderHand(
+            freshRoom
+          );
+
 
           status(
             'gameStatus',
