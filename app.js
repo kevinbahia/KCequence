@@ -6125,49 +6125,69 @@ function renderHand(room) {
 
 
       button.addEventListener(
-
         'click',
-
         async () => {
 
-          if (
-            !myTurn
-          ) {
+          if (!myTurn) {
 
             status(
-
               'gameStatus',
-
               `Espera. Es turno de ${
                 playerName(
                   room,
                   game.turn
                 )
               }.`
-
             );
 
+            return;
+          }
+
+
+          /*
+            Si toca la MISMA carta que ya tenía
+            seleccionada, entonces sí la cancela.
+          */
+          if (
+            selectedCardIndex === index
+          ) {
+
+            selectedCardIndex =
+              null;
+
+            renderBoard(room);
+            renderHand(room);
+
+            status(
+              'gameStatus',
+              'Selección cancelada.'
+            );
 
             return;
-
           }
 
+
           /*
-            El jugador ya tocó una carta.
-            Cancelamos INMEDIATAMENTE cualquier
-            jugada automática pendiente en este navegador.
+            Desde el instante que toca una carta
+            detenemos el AUTO local.
           */
           if (autoPlayTimer) {
-            clearTimeout(autoPlayTimer);
-            autoPlayTimer = null;
+
+            clearTimeout(
+              autoPlayTimer
+            );
+
+            autoPlayTimer =
+              null;
           }
 
-          autoPlayKey = null;
+          autoPlayKey =
+            null;
 
 
           /*
-            Marcamos visualmente la carta primero
-            para que la respuesta sea instantánea.
+            Seleccionarla inmediatamente.
+            Importante para móvil.
           */
           const previousSelectedCardIndex =
             selectedCardIndex;
@@ -6180,11 +6200,12 @@ function renderHand(room) {
 
 
           /*
-            Ahora sincronizamos con Firebase
-            que el jugador tomó control manual.
+            Ahora avisamos a Firebase que el jugador
+            tomó control manual del turno.
           */
           const manualControl =
             await claimManualTurn();
+
 
           if (!manualControl) {
 
@@ -6194,54 +6215,29 @@ function renderHand(room) {
             renderBoard(room);
             renderHand(room);
 
-            return;
-          }
-
-
-          if (
-            selectedCardIndex ===
-              index
-          ) {
-
-            selectedCardIndex =
-              null;
-
-
-            renderBoard(
-              room
-            );
-
-
-            renderHand(
-              room
-            );
-
-
             status(
               'gameStatus',
-              'Selección cancelada.'
+              'No se pudo tomar control del turno. Intenta otra vez.'
             );
 
-
             return;
-
           }
 
 
+          /*
+            MUY IMPORTANTE:
+            Ya NO volvemos a comprobar
+            selectedCardIndex === index aquí.
+          */
+
           status(
-
             'gameStatus',
-
             `Seleccionaste ${
-              cardText(
-                id
-              )
+              cardText(id)
             }. Ahora toca una casilla iluminada.`
-
           );
 
         }
-
       );
 
 
@@ -13221,6 +13217,76 @@ function showQuickChatToast(
     'show'
   );
 
+  /*
+    FORZAR VISIBILIDAD DEL MENSAJE
+    para evitar conflictos con CSS.
+  */
+
+  toast.style.setProperty(
+    'display',
+    'flex',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'visibility',
+    'visible',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'opacity',
+    '1',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'position',
+    'fixed',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'top',
+    '90px',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'left',
+    '50%',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'right',
+    'auto',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'bottom',
+    'auto',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'transform',
+    'translateX(-50%) translateY(0)',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'z-index',
+    '2147483647',
+    'important'
+  );
+
+  toast.style.setProperty(
+    'pointer-events',
+    'none',
+    'important'
+  );
 
   quickChatHideTimer =
     setTimeout(
@@ -13229,6 +13295,50 @@ function showQuickChatToast(
 
         toast.classList.remove(
           'show'
+        );
+
+        toast.style.removeProperty(
+          'display'
+        );
+
+        toast.style.removeProperty(
+          'visibility'
+        );
+
+        toast.style.removeProperty(
+          'opacity'
+        );
+
+        toast.style.removeProperty(
+          'position'
+        );
+
+        toast.style.removeProperty(
+          'top'
+        );
+
+        toast.style.removeProperty(
+          'left'
+        );
+
+        toast.style.removeProperty(
+          'right'
+        );
+
+        toast.style.removeProperty(
+          'bottom'
+        );
+
+        toast.style.removeProperty(
+          'transform'
+        );
+
+        toast.style.removeProperty(
+          'z-index'
+        );
+
+        toast.style.removeProperty(
+          'pointer-events'
         );
 
         quickChatHideTimer =
