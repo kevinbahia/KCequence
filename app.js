@@ -3852,25 +3852,35 @@ async function enterRoom(code) {
             'playing'
         ) {
 
+          /*
+            IMPORTANTE:
+            Si Firebase cambió de finished a playing
+            porque TODOS aceptaron la revancha,
+            cerramos el resultado en TODOS los jugadores.
+          */
+          hideResult();
+
+          selectedCardIndex =
+            null;
+
+          moveInFlight =
+            false;
+
           await reconcileActiveGame(
             code
           );
-
 
           showView(
             'gameView'
           );
 
-
           renderGame(
             currentRoom
           );
 
-
           scheduleAutomaticPlay(
             currentRoom
           );
-
         }
 
 
