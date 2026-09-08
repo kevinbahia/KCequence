@@ -5572,6 +5572,77 @@ function getCompletedSequenceCells(
 
 }
 
+/* =========================================================
+   TAP / CLICK UNIVERSAL
+   PC + ANDROID + IPHONE + TABLET
+========================================================= */
+
+function addUniversalTap(
+  element,
+  handler
+) {
+
+  if (!element) {
+    return;
+  }
+
+  let pointerHandled = false;
+
+  element.addEventListener(
+    'pointerup',
+    event => {
+
+      /*
+        Solo botón principal cuando
+        realmente viene de mouse.
+      */
+      if (
+        event.pointerType === 'mouse' &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      pointerHandled = true;
+
+      /*
+        Evita gestos/click fantasma
+        especialmente en Safari móvil.
+      */
+      event.preventDefault();
+
+      handler(event);
+
+      setTimeout(
+        () => {
+          pointerHandled = false;
+        },
+        400
+      );
+    },
+    {
+      passive: false
+    }
+  );
+
+  /*
+    Fallback para navegadores/dispositivos
+    donde Pointer Events no estén disponibles.
+  */
+  element.addEventListener(
+    'click',
+    event => {
+
+      if (pointerHandled) {
+        event.preventDefault();
+        return;
+      }
+
+      handler(event);
+    }
+  );
+}
+
 
 /* =========================================================
    TABLERO
@@ -5904,18 +5975,26 @@ function renderBoard(room) {
       }
 
 
-      button.addEventListener(
-
-        'click',
-
+      addUniversalTap(
+        button,
         () => {
+
+          if (
+            selectedCardIndex === null
+          ) {
+
+            status(
+              'gameStatus',
+              'Primero selecciona una carta.'
+            );
+
+            return;
+          }
 
           playAt(
             index
           );
-
         }
-
       );
 
 
@@ -6125,8 +6204,8 @@ function renderHand(room) {
       `;
 
 
-      button.addEventListener(
-        'click',
+      addUniversalTap(
+        button,
         async () => {
 
           if (!myTurn) {

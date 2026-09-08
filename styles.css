@@ -4715,3 +4715,40 @@ and
   }
 
 }
+
+/* =========================================================
+   CONTROLES TÁCTILES KCEQUENCE
+========================================================= */
+
+#hand .card,
+#board .cell {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#hand .card {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#board .cell {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Una casilla válida debe recibir el toque */
+#board .cell.legal {
+    pointer-events: auto !important;
+    touch-action: manipulation;
+}
+
+/*
+  Los elementos internos de la carta/tablero
+  NO deben robar el toque al botón.
+*/
+#board .cell *,
+#hand .card * {
+    pointer-events: none;
+}
