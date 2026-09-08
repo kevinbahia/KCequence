@@ -3852,19 +3852,20 @@ async function enterRoom(code) {
             'playing'
         ) {
 
-          /*
-            IMPORTANTE:
-            Si Firebase cambió de finished a playing
-            porque TODOS aceptaron la revancha,
-            cerramos el resultado en TODOS los jugadores.
-          */
           hideResult();
 
-          selectedCardIndex =
-            null;
+          /*
+            NO borrar selectedCardIndex aquí.
 
-          moveInFlight =
-            false;
+            Firebase actualiza la sala también cuando:
+            - tomamos control manual
+            - cambia la presencia
+            - cambia AUTO
+            - ocurre cualquier actualización
+
+            Si ponemos selectedCardIndex = null aquí,
+            la carta se deselecciona inmediatamente.
+          */
 
           await reconcileActiveGame(
             code
