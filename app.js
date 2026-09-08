@@ -67,13 +67,36 @@ let lastQuickChatId = null;
 let lastQuickChatSentAt = 0;
 
 /* =========================================================
-   JUGADA AUTOMÁTICA PARA DESCONECTADOS
+   JUGADA AUTOMÁTICA
 ========================================================= */
 
-const AUTO_PLAY_DELAY_MS = 20000;
+/*
+  Si un jugador todavía está en modo manual:
+  tiene 20 segundos para tocar una carta.
 
-let autoPlayTimer = null;
-let autoPlayKey = null;
+  Si no toca nada:
+  entra en modo AUTO.
+
+  Cuando ya está en AUTO:
+  en sus siguientes turnos solamente esperamos
+  5 segundos antes de jugar automáticamente.
+
+  Si toca una carta:
+  recupera el control manual inmediatamente.
+*/
+
+const AUTO_PLAY_IDLE_DELAY_MS =
+  20000;
+
+const AUTO_PLAY_ACTIVE_DELAY_MS =
+  5000;
+
+
+let autoPlayTimer =
+  null;
+
+let autoPlayKey =
+  null;
 
 /*
   Una desconexión NO significa abandonar.
@@ -1673,14 +1696,19 @@ function shuffle(array) {
    CREAR BARAJA
 ========================================================= */
 
-function makeDeck() {
+function makeDeck(
+  playerCount = 2
+) {
 
-  const deck = [];
+  const deck =
+    [];
 
 
   /*
-    Cartas normales:
-    2 copias de cada carta que NO sea Jota.
+    CARTAS NORMALES
+
+    Dos copias de cada carta
+    excepto las Jotas.
   */
   for (
     let x = 0;
@@ -1699,7 +1727,8 @@ function makeDeck() {
       ) {
 
         if (
-          rank === 'J'
+          rank ===
+            'J'
         ) {
 
           continue;
@@ -1722,30 +1751,70 @@ function makeDeck() {
 
 
   /*
-    12 JOTAS EXACTAS POR PARTIDA.
+    JOTAS SEGÚN JUGADORES
 
-    6 libres:
+    2 jugadores:
+      2 J♥
+      2 J♦
+      2 J♣
+      2 J♠
+
+      TOTAL = 8
+      4 libres
+      4 para quitar.
+
+
+    3 o 4 jugadores:
       3 J♥
       3 J♦
-
-    6 para quitar ficha:
       3 J♣
       3 J♠
 
-    Todas se mezclan con el resto del mazo,
-    así que a quién le toquen depende de la suerte.
+      TOTAL = 12
+      6 libres
+      6 para quitar.
   */
+
+  const jackCopiesPerSuit =
+
+    Number(
+      playerCount
+    ) >= 3
+
+      ? 3
+
+      : 2;
+
+
   for (
     let x = 0;
-    x < 3;
+    x <
+      jackCopiesPerSuit;
     x++
   ) {
 
     deck.push(
-      cardId('H', 'J'),
-      cardId('D', 'J'),
-      cardId('C', 'J'),
-      cardId('S', 'J')
+
+      cardId(
+        'H',
+        'J'
+      ),
+
+      cardId(
+        'D',
+        'J'
+      ),
+
+      cardId(
+        'C',
+        'J'
+      ),
+
+      cardId(
+        'S',
+        'J'
+      )
+
     );
 
   }
@@ -1759,109 +1828,234 @@ function makeDeck() {
 
 
 /* =========================================================
+   TABLERO OFICIAL KCEQUENCE
+   DISTRIBUCIÓN FIJA 10 x 10
+========================================================= */
+
+/*
+  La distribución sigue el tablero físico
+  de referencia que elegimos.
+
+  S = ♠
+  H = ♥
+  D = ♦
+  C = ♣
+
+  Las cuatro esquinas son libres.
+*/
+
+/* =========================================================
+   TABLERO OFICIAL KCEQUENCE
+   Basado en la distribución del tablero físico
+   10 x 10 = 100 posiciones
+========================================================= */
+
+/*
+  PALOS:
+
+  S = ♠ Espadas
+  H = ♥ Corazones
+  D = ♦ Diamantes
+  C = ♣ Tréboles
+
+  FREE = esquina libre / comodín
+
+  IMPORTANTE:
+  - El tablero NO se mezcla.
+  - Siempre mantiene esta distribución.
+  - Las Jotas NO aparecen impresas en el tablero.
+  - Las cuatro esquinas son libres.
+*/
+
+const KCEQUENCE_BOARD = [
+
+  /* =====================================================
+     FILA 1
+     ★  2♠  3♠  4♠  5♠  6♠  7♠  8♠  9♠  ★
+  ===================================================== */
+
+  FREE,
+  '2S',
+  '3S',
+  '4S',
+  '5S',
+  '6S',
+  '7S',
+  '8S',
+  '9S',
+  FREE,
+
+
+  /* =====================================================
+     FILA 2
+     6♣  5♣  4♣  3♣  2♣  A♥  K♥  Q♥  10♥  10♠
+  ===================================================== */
+
+  '6C',
+  '5C',
+  '4C',
+  '3C',
+  '2C',
+  'AH',
+  'KH',
+  'QH',
+  '10H',
+  '10S',
+
+
+  /* =====================================================
+     FILA 3
+     7♣  A♠  2♦  3♦  4♦  5♦  6♦  7♦  9♥  Q♠
+  ===================================================== */
+
+  '7C',
+  'AS',
+  '2D',
+  '3D',
+  '4D',
+  '5D',
+  '6D',
+  '7D',
+  '9H',
+  'QS',
+
+
+  /* =====================================================
+     FILA 4
+     8♣  K♠  6♣  5♣  4♣  3♣  2♣  8♦  8♥  K♠
+  ===================================================== */
+
+  '8C',
+  'KS',
+  '6C',
+  '5C',
+  '4C',
+  '3C',
+  '2C',
+  '8D',
+  '8H',
+  'KS',
+
+
+  /* =====================================================
+     FILA 5
+     9♣  Q♠  7♣  6♥  5♥  4♥  A♥  9♦  7♥  A♠
+  ===================================================== */
+
+  '9C',
+  'QS',
+  '7C',
+  '6H',
+  '5H',
+  '4H',
+  'AH',
+  '9D',
+  '7H',
+  'AS',
+
+
+  /* =====================================================
+     FILA 6
+     10♣  10♠  8♣  7♥  2♥  3♥  K♥  10♦  6♥  2♦
+  ===================================================== */
+
+  '10C',
+  '10S',
+  '8C',
+  '7H',
+  '2H',
+  '3H',
+  'KH',
+  '10D',
+  '6H',
+  '2D',
+
+
+  /* =====================================================
+     FILA 7
+     Q♣  9♠  9♣  8♥  9♥  10♥  Q♥  Q♦  5♥  3♦
+  ===================================================== */
+
+  'QC',
+  '9S',
+  '9C',
+  '8H',
+  '9H',
+  '10H',
+  'QH',
+  'QD',
+  '5H',
+  '3D',
+
+
+  /* =====================================================
+     FILA 8
+     K♣  8♠  10♣  Q♣  K♣  A♣  A♦  K♦  4♥  4♦
+  ===================================================== */
+
+  'KC',
+  '8S',
+  '10C',
+  'QC',
+  'KC',
+  'AC',
+  'AD',
+  'KD',
+  '4H',
+  '4D',
+
+
+  /* =====================================================
+     FILA 9
+     A♣  7♠  6♠  5♠  4♠  3♠  2♠  2♥  3♥  5♦
+  ===================================================== */
+
+  'AC',
+  '7S',
+  '6S',
+  '5S',
+  '4S',
+  '3S',
+  '2S',
+  '2H',
+  '3H',
+  '5D',
+
+
+  /* =====================================================
+     FILA 10
+     ★  A♦  K♦  Q♦  10♦  9♦  8♦  7♦  6♦  ★
+  ===================================================== */
+
+  FREE,
+  'AD',
+  'KD',
+  'QD',
+  '10D',
+  '9D',
+  '8D',
+  '7D',
+  '6D',
+  FREE
+
+];
+
+
+/* =========================================================
    CREAR TABLERO
 ========================================================= */
 
 function makeBoard() {
 
-  const cards =
-    [];
-
-
   /*
-    Dos copias de cada carta
-    excepto las Jotas.
+    Se crea una copia para que Firebase
+    pueda guardar el tablero sin modificar
+    KCEQUENCE_BOARD.
   */
 
-  for (
-    let x = 0;
-    x < 2;
-    x++
-  ) {
-
-    for (
-      const suit
-      of SUITS
-    ) {
-
-      for (
-        const rank
-        of RANKS
-      ) {
-
-        if (
-          rank !==
-            'J'
-        ) {
-
-          cards.push(
-
-            cardId(
-              suit,
-              rank
-            )
-
-          );
-
-        }
-
-      }
-
-    }
-
-  }
-
-
-  const mixed =
-    shuffle(
-      cards
-    );
-
-
-  const board =
-    [];
-
-
-  let cardIndex =
-    0;
-
-
-  for (
-    let i = 0;
-    i < 100;
-    i++
-  ) {
-
-    if (
-
-      i === 0 ||
-
-      i === 9 ||
-
-      i === 90 ||
-
-      i === 99
-
-    ) {
-
-      board.push(
-        FREE
-      );
-
-    } else {
-
-      board.push(
-        mixed[
-          cardIndex++
-        ]
-      );
-
-    }
-
-  }
-
-
-  return board;
+  return [
+    ...KCEQUENCE_BOARD
+  ];
 
 }
 
@@ -4484,7 +4678,9 @@ if (startBtn) {
 
 
               const deck =
-                makeDeck();
+                makeDeck(
+                  ids.length
+                );
 
 
               const hands =
@@ -4591,6 +4787,12 @@ if (startBtn) {
                 sequences,
 
                 completedSequences:
+                  {},
+
+                autoPlayers:
+                  {},
+
+                manualTurnClaims:
                   {},
 
                 winningSequence:
@@ -5916,7 +6118,7 @@ function renderHand(room) {
 
         'click',
 
-        () => {
+        async () => {
 
           if (
             !myTurn
@@ -5935,6 +6137,18 @@ function renderHand(room) {
 
             );
 
+
+            return;
+
+          }
+
+          const manualControl =
+            await claimManualTurn();
+
+
+          if (
+            !manualControl
+          ) {
 
             return;
 
@@ -7292,7 +7506,9 @@ function chooseAutomaticMove(
 
 async function performAutomaticMove(
   code,
-  expectedUid
+  expectedUid,
+  activateAuto = false,
+  expectedMoveCount = null
 ) {
 
   if (
@@ -7368,6 +7584,87 @@ async function performAutomaticMove(
         const game =
           room.game;
 
+          const currentMoveCount =
+            Number(
+              game.moveCount ||
+              0
+            );
+
+
+          /*
+            Si el turno ya cambió desde que
+            comenzó el temporizador,
+            no hacemos absolutamente nada.
+          */
+          if (
+            Number.isInteger(
+              expectedMoveCount
+            ) &&
+            currentMoveCount !==
+              expectedMoveCount
+          ) {
+
+            return;
+
+          }
+
+
+          /*
+            Si el jugador tocó una carta
+            durante este turno,
+            tomó control manual.
+
+            El AUTO queda cancelado.
+          */
+          if (
+            Number(
+              game.manualTurnClaims?.[
+                expectedUid
+              ]
+            ) ===
+              currentMoveCount
+          ) {
+
+            return;
+
+          }
+
+
+          game.autoPlayers =
+            game.autoPlayers ||
+            {};
+
+
+          /*
+            Llegó a 20 segundos sin tocar nada:
+            entra oficialmente en AUTO.
+          */
+          if (
+            activateAuto
+          ) {
+
+            game.autoPlayers[
+              expectedUid
+            ] =
+              true;
+
+          }
+
+
+          /*
+            Si este era un turno de 5 segundos
+            pero el jugador ya salió del AUTO,
+            no hacemos la jugada.
+          */
+          else if (
+            game.autoPlayers?.[
+              expectedUid
+            ] !== true
+          ) {
+
+            return;
+
+          }
 
         const hand =
           game.hands?.[
@@ -7666,6 +7963,143 @@ async function performAutomaticMove(
 
 }
 
+/* =========================================================
+   RECUPERAR CONTROL MANUAL
+========================================================= */
+
+async function claimManualTurn() {
+
+  if (
+    !currentRoomCode ||
+    !me
+  ) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    const result =
+      await runTransaction(
+
+        ref(
+          db,
+          `rooms/${currentRoomCode}`
+        ),
+
+        room => {
+
+          if (
+            !room ||
+            room.status !==
+              'playing' ||
+            !room.game ||
+            room.game.winner
+          ) {
+
+            return;
+
+          }
+
+
+          /*
+            Solo el jugador que tiene
+            actualmente el turno puede
+            reclamar el control manual.
+          */
+          if (
+            room.game.turn !==
+              me.uid
+          ) {
+
+            return;
+
+          }
+
+
+          const moveCount =
+            Number(
+              room.game.moveCount ||
+              0
+            );
+
+
+          room.game.autoPlayers =
+            room.game.autoPlayers ||
+            {};
+
+
+          room.game.manualTurnClaims =
+            room.game.manualTurnClaims ||
+            {};
+
+
+          /*
+            Quitarlo del modo automático.
+          */
+          delete room.game
+            .autoPlayers[
+              me.uid
+            ];
+
+
+          /*
+            Marcamos que YA interactuó
+            durante este turno.
+
+            Esto significa que después de
+            tocar una carta puede tardarse
+            lo que quiera en terminar
+            esa jugada.
+          */
+          room.game.manualTurnClaims[
+            me.uid
+          ] =
+            moveCount;
+
+
+          room.game.updatedAt =
+            Date.now();
+
+
+          room.updatedAt =
+            Date.now();
+
+
+          return room;
+
+        }
+
+      );
+
+
+    if (
+      result.committed
+    ) {
+
+      currentRoom =
+        result.snapshot.val();
+
+      return true;
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      'ERROR RECUPERANDO CONTROL MANUAL:',
+      error
+    );
+
+  }
+
+
+  return false;
+
+}
 
 /* =========================================================
    PROGRAMAR BOT PARA DESCONECTADO
@@ -7677,14 +8111,17 @@ function scheduleAutomaticPlay(
 
   if (
     !room ||
-    room.status !== 'playing' ||
+    room.status !==
+      'playing' ||
     !room.game ||
     room.game.winner ||
     !currentRoomCode ||
     !me
   ) {
 
-    if (autoPlayTimer) {
+    if (
+      autoPlayTimer
+    ) {
 
       clearTimeout(
         autoPlayTimer
@@ -7696,7 +8133,6 @@ function scheduleAutomaticPlay(
     autoPlayTimer =
       null;
 
-
     autoPlayKey =
       null;
 
@@ -7706,8 +8142,12 @@ function scheduleAutomaticPlay(
   }
 
 
+  const game =
+    room.game;
+
+
   const turnUid =
-    room.game.turn;
+    game.turn;
 
 
   const turnPlayer =
@@ -7716,11 +8156,14 @@ function scheduleAutomaticPlay(
     ];
 
 
-  if (!turnPlayer) {
+  if (
+    !turnPlayer
+  ) {
 
     return;
 
   }
+
 
   const controller =
     getAutoPlayController(
@@ -7728,12 +8171,19 @@ function scheduleAutomaticPlay(
     );
 
 
+  /*
+    Solamente un navegador controla
+    las jugadas automáticas para evitar
+    que dos clientes jueguen a la vez.
+  */
   if (
     controller !==
       me.uid
   ) {
 
-    if (autoPlayTimer) {
+    if (
+      autoPlayTimer
+    ) {
 
       clearTimeout(
         autoPlayTimer
@@ -7745,6 +8195,59 @@ function scheduleAutomaticPlay(
     autoPlayTimer =
       null;
 
+    autoPlayKey =
+      null;
+
+
+    return;
+
+  }
+
+
+  const moveCount =
+    Number(
+      game.moveCount ||
+      0
+    );
+
+
+  /*
+    ¿El jugador ya tocó una carta
+    durante ESTE turno?
+  */
+  const claimedManual =
+    Number(
+      game.manualTurnClaims?.[
+        turnUid
+      ]
+    ) ===
+      moveCount;
+
+
+  /*
+    Si ya tomó control manual,
+    no existe temporizador para
+    este turno.
+
+    Puede tardarse lo que quiera.
+  */
+  if (
+    claimedManual
+  ) {
+
+    if (
+      autoPlayTimer
+    ) {
+
+      clearTimeout(
+        autoPlayTimer
+      );
+
+    }
+
+
+    autoPlayTimer =
+      null;
 
     autoPlayKey =
       null;
@@ -7755,17 +8258,49 @@ function scheduleAutomaticPlay(
   }
 
 
+  const playerIsAuto =
+    game.autoPlayers?.[
+      turnUid
+    ] === true;
+
+
+  /*
+    Manual:
+      20 segundos.
+
+    Ya en AUTO:
+      5 segundos.
+  */
+  const delay =
+    playerIsAuto
+
+      ? AUTO_PLAY_ACTIVE_DELAY_MS
+
+      : AUTO_PLAY_IDLE_DELAY_MS;
+
+
+  const mode =
+    playerIsAuto
+
+      ? 'auto'
+
+      : 'manual';
+
+
   const key =
     `${currentRoomCode}:${
       turnUid
     }:${
-      room.game.moveCount || 0
+      moveCount
+    }:${
+      mode
     }`;
 
 
   if (
     autoPlayTimer &&
-    autoPlayKey === key
+    autoPlayKey ===
+      key
   ) {
 
     return;
@@ -7773,7 +8308,9 @@ function scheduleAutomaticPlay(
   }
 
 
-  if (autoPlayTimer) {
+  if (
+    autoPlayTimer
+  ) {
 
     clearTimeout(
       autoPlayTimer
@@ -7799,6 +8336,14 @@ function scheduleAutomaticPlay(
           turnUid;
 
 
+        const expectedCount =
+          moveCount;
+
+
+        const shouldActivateAuto =
+          !playerIsAuto;
+
+
         autoPlayTimer =
           null;
 
@@ -7809,12 +8354,14 @@ function scheduleAutomaticPlay(
 
         await performAutomaticMove(
           code,
-          uid
+          uid,
+          shouldActivateAuto,
+          expectedCount
         );
 
       },
 
-      AUTO_PLAY_DELAY_MS
+      delay
 
     );
 
@@ -9820,7 +10367,9 @@ function createRematchGame(room) {
 
 
   const deck =
-    makeDeck();
+    makeDeck(
+      ids.length
+    );
 
 
   const hands =
@@ -9971,6 +10520,12 @@ function createRematchGame(room) {
     sequences,
 
     completedSequences:
+      {},
+
+    autoPlayers:
+      {},
+
+    manualTurnClaims:
       {},
 
     winningSequence:
@@ -11402,7 +11957,9 @@ async function createPublicMatch(
 
 
   const deck =
-    makeDeck();
+    makeDeck(
+      ids.length
+    );
 
 
   const hands =
@@ -11495,6 +12052,12 @@ async function createPublicMatch(
     sequences,
 
     completedSequences:
+      {},
+
+    autoPlayers:
+      {},
+
+    manualTurnClaims:
       {},
 
     winningSequence:
@@ -12420,30 +12983,22 @@ async function sendQuickChat(
     !currentRoom?.game ||
     !me
   ) {
-
     return;
-
   }
 
 
   if (
-    currentRoom.status !==
-      'playing' ||
+    currentRoom.status !== 'playing' ||
     currentRoom.game.winner
   ) {
-
     return;
-
   }
 
 
   const message =
     QUICK_CHAT_MESSAGES.find(
-
       item =>
-        item.id ===
-          messageId
-
+        item.id === messageId
     );
 
 
@@ -12452,9 +13007,6 @@ async function sendQuickChat(
   }
 
 
-  /*
-    Anti-spam local sencillo.
-  */
   const now =
     Date.now();
 
@@ -12462,7 +13014,7 @@ async function sendQuickChat(
   if (
     now -
     lastQuickChatSentAt <
-      900
+    900
   ) {
 
     status(
@@ -12470,9 +13022,7 @@ async function sendQuickChat(
       'Espera un momento antes de enviar otro mensaje.'
     );
 
-
     return;
-
   }
 
 
@@ -12480,7 +13030,42 @@ async function sendQuickChat(
     now;
 
 
+  const chatData = {
+
+    id:
+      `${now}_${me.uid}`,
+
+    uid:
+      me.uid,
+
+    messageId:
+      message.id,
+
+    clientAt:
+      now
+
+  };
+
+
+  /*
+    MOSTRAR INMEDIATAMENTE
+    AL JUGADOR QUE LO MANDÓ
+  */
+
+  renderQuickChatMessage({
+    ...currentRoom,
+
+    quickChat:
+      chatData
+  });
+
+
   try {
+
+    /*
+      MANDARLO A FIREBASE
+      PARA LOS DEMÁS
+    */
 
     await set(
 
@@ -12490,26 +13075,10 @@ async function sendQuickChat(
       ),
 
       {
-
-        id:
-          `${now}_${me.uid}`,
-
-
-        uid:
-          me.uid,
-
-
-        messageId:
-          message.id,
-
-
-        clientAt:
-          now,
-
+        ...chatData,
 
         at:
           serverTimestamp()
-
       }
 
     );
