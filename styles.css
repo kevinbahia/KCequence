@@ -1897,9 +1897,8 @@ button:disabled{
     rgba(34,197,94,.10);
 }
 
-
 /* ==========================================================
-   TABLERO KCEQUENCE - EDICIÓN PREMIUM
+   TABLERO KCEQUENCE — ROYAL EDITION
 ========================================================== */
 
 .board-section{
@@ -1909,63 +1908,99 @@ button:disabled{
 
 .board-section-head{
   display:flex;
-  align-items:end;
+  align-items:flex-end;
   justify-content:space-between;
   gap:12px;
 }
 
-/*
-  Marco exterior del tablero.
-  Mantiene la identidad oscura de KCequence.
-*/
+
+/* ==========================================================
+   MARCO EXTERIOR
+========================================================== */
+
 .board-wrap{
   width:100%;
   max-width:100%;
 
+  position:relative;
+
   display:flex;
   justify-content:center;
 
-  overflow-x:auto;
-  overflow-y:hidden;
-
   padding:
-    clamp(10px,1.6vw,18px);
+    24px 54px;
+
+  margin:0 auto;
+
+  overflow:visible;
 
   border:
     1px solid
-    rgba(244,191,79,.20);
+    rgba(244,191,79,.38);
 
-  border-radius:24px;
+  border-radius:26px;
 
   background:
     radial-gradient(
       circle at 50% 0%,
-      rgba(99,102,241,.15),
-      transparent 45%
+      rgba(99,102,241,.17),
+      transparent 43%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(244,191,79,.07),
+      transparent 38%
     ),
     linear-gradient(
       145deg,
-      #121d31,
-      #080e1a
+      #17243a 0%,
+      #0c1526 52%,
+      #070d18 100%
     );
 
   box-shadow:
-    inset 0 0 40px
-      rgba(0,0,0,.30),
-    0 18px 50px
-      rgba(0,0,0,.24);
+    inset 0 0 0 1px
+      rgba(255,255,255,.025),
 
-  -webkit-overflow-scrolling:touch;
+    inset 0 0 45px
+      rgba(0,0,0,.40),
+
+    0 20px 55px
+      rgba(0,0,0,.30);
 }
 
 
-/*
-  Tablero real:
-  10 columnas x 10 filas.
-*/
+/* línea dorada interior */
+
+.board-wrap::before{
+  content:"";
+
+  position:absolute;
+
+  inset:8px;
+
+  pointer-events:none;
+
+  border:
+    1px solid
+    rgba(244,191,79,.11);
+
+  border-radius:19px;
+}
+
+
+
+/* ==========================================================
+   TABLERO 10x10
+========================================================== */
+
 .board{
-  width:min(100%,900px);
-  max-width:900px;
+  /*
+    MÁS PEQUEÑO EN PC
+  */
+
+  width:min(100%,700px);
+  max-width:700px;
 
   min-width:0;
 
@@ -1974,45 +2009,185 @@ button:disabled{
   grid-template-columns:
     repeat(10,minmax(0,1fr));
 
-  gap:
-    clamp(2px,.42vw,5px);
+  gap:4px;
+
+  position:relative;
 
   margin:0 auto;
 
-  padding:
-    clamp(6px,.8vw,10px);
+  padding:10px;
 
   border:
     1px solid
-    rgba(244,191,79,.15);
+    rgba(244,191,79,.22);
 
   border-radius:17px;
 
   background:
-    linear-gradient(
-      145deg,
-      #263750,
-      #18263b
+    radial-gradient(
+      circle at 50% 45%,
+      #263b59,
+      #16253c 70%
     );
 
   box-shadow:
-    inset 0 0 28px
-      rgba(0,0,0,.30);
+    inset 0 0 35px
+      rgba(0,0,0,.34),
+
+    0 10px 28px
+      rgba(0,0,0,.28);
 }
 
 
 /* ==========================================================
-   CARTAS IMPRESAS EN EL TABLERO
+   BRANDING LATERAL KCEQUENCE
+========================================================== */
+
+.board-side-brand{
+  position:absolute;
+
+  top:50%;
+
+  z-index:5;
+
+  display:flex;
+  align-items:center;
+
+  color:#f4bf4f;
+
+  font-size:14px;
+  font-weight:950;
+
+  letter-spacing:.08em;
+
+  white-space:nowrap;
+
+  pointer-events:none;
+
+  user-select:none;
+
+  text-shadow:
+    0 1px 0
+      rgba(255,255,255,.12),
+
+    0 0 9px
+      rgba(244,191,79,.24),
+
+    0 4px 10px
+      rgba(0,0,0,.50);
+}
+
+
+/* IZQUIERDA */
+
+.board-side-brand-left{
+  left:25px;
+
+  transform:
+    translate(-50%,-50%)
+    rotate(-90deg);
+}
+
+
+/* DERECHA */
+
+.board-side-brand-right{
+  right:25px;
+
+  transform:
+    translate(50%,-50%)
+    rotate(90deg);
+}
+
+
+/* ==========================================================
+   Q REAL DE KCEQUENCE
+========================================================== */
+
+.board-brand-q{
+  position:relative;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  color:#fff1b8;
+
+  font-size:1.10em;
+
+  margin:
+    0 .02em;
+}
+
+
+.board-wrap{
+  isolation:isolate;
+}
+
+.board-wrap::before{
+  content:"";
+
+  position:absolute;
+
+  inset:8px;
+
+  z-index:0;
+
+  border:
+    1px solid
+    rgba(244,191,79,.13);
+
+  border-radius:19px;
+
+  pointer-events:none;
+
+  box-shadow:
+    inset 0 0 25px
+      rgba(244,191,79,.025);
+}
+
+.board{
+  z-index:2;
+}
+
+/* ==========================================================
+   CORONA ENCIMA DE LA Q
+========================================================== */
+
+.board-brand-crown{
+  position:absolute;
+
+  left:50%;
+  top:-12px;
+
+  transform:
+    translateX(-50%);
+
+  color:#ffd96a;
+
+  font-size:10px;
+
+  line-height:1;
+
+  text-shadow:
+    0 0 7px
+      rgba(244,191,79,.65);
+
+  filter:
+    drop-shadow(
+      0 2px 2px
+      rgba(0,0,0,.45)
+    );
+}
+
+/* ==========================================================
+   CARTAS DEL TABLERO
 ========================================================== */
 
 .cell{
   width:100%;
   min-width:0;
 
-  /*
-    Carta vertical.
-    Ya no es una casilla cuadrada.
-  */
   aspect-ratio:5 / 7;
 
   position:relative;
@@ -2023,40 +2198,47 @@ button:disabled{
 
   overflow:hidden;
 
-  padding:
-    clamp(2px,.35vw,5px);
+  padding:3px;
 
   border:
     1px solid
-    rgba(214,208,194,.95);
+    #d7d0c1;
 
-  border-radius:
-    clamp(4px,.55vw,8px);
+  border-radius:6px;
 
   background:
-    linear-gradient(
-      145deg,
+    radial-gradient(
+      circle at 50% 42%,
       #fffef9 0%,
-      #f6f2e8 55%,
-      #e5dfd2 100%
+      #f8f5ed 56%,
+      #e7e0d2 100%
     );
 
   color:#111827;
 
   text-align:center;
 
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
   font-size:
-    clamp(7px,1.2vw,13px);
+    clamp(8px,.80vw,12px);
 
   font-weight:900;
 
   cursor:pointer;
 
   box-shadow:
-    0 2px 5px
-      rgba(0,0,0,.25),
-    inset 0 1px 0
-      rgba(255,255,255,.90);
+    0 2px 4px
+      rgba(0,0,0,.30),
+
+    inset 0 0 0 1px
+      rgba(255,255,255,.70),
+
+    inset 0 -5px 10px
+      rgba(95,76,45,.035);
 
   touch-action:manipulation;
 
@@ -2072,9 +2254,8 @@ button:disabled{
 }
 
 
-/*
-  Pequeño brillo de carta.
-*/
+/* acabado satinado */
+
 .cell::before{
   content:"";
 
@@ -2085,51 +2266,62 @@ button:disabled{
 
   background:
     linear-gradient(
-      135deg,
-      rgba(255,255,255,.30),
-      transparent 35%
+      125deg,
+      rgba(255,255,255,.40),
+      transparent 32%,
+      transparent 70%,
+      rgba(129,103,61,.04)
     );
 
-  opacity:.55;
+  opacity:.65;
 }
 
 
 /* ==========================================================
-   ESQUINAS LIBRES KCEQUENCE
+   PALOS
+========================================================== */
+
+.suit-red{
+  color:#c9263c;
+}
+
+
+/* ==========================================================
+   ESQUINAS KCEQUENCE
 ========================================================== */
 
 .cell.free{
   border:
     1px solid
-    rgba(244,191,79,.48);
+    rgba(244,191,79,.72);
 
   background:
     radial-gradient(
       circle,
-      rgba(244,191,79,.15),
-      transparent 55%
+      rgba(99,102,241,.18),
+      transparent 52%
     ),
     linear-gradient(
       145deg,
-      #253a5d,
-      #101b30
+      #21395e,
+      #0b172a
     );
 
-  color:#f7ce68;
+  color:transparent;
 
   box-shadow:
-    inset 0 0 15px
-      rgba(244,191,79,.08),
+    inset 0 0 18px
+      rgba(244,191,79,.09),
 
-    0 2px 7px
-      rgba(0,0,0,.30);
+    0 2px 6px
+      rgba(0,0,0,.38);
 }
 
 
 /*
-  En las esquinas el símbolo queda
-  como espacio especial de KCequence.
+  Emblema KC de las cuatro esquinas
 */
+
 .cell.free::after{
   content:"KC";
 
@@ -2141,92 +2333,164 @@ button:disabled{
   transform:
     translate(-50%,-50%);
 
-  width:
-    clamp(20px,3vw,35px);
-
-  height:
-    clamp(20px,3vw,35px);
+  width:34px;
+  height:34px;
 
   display:grid;
   place-items:center;
 
   border:
     1px solid
-    rgba(244,191,79,.50);
+    rgba(244,191,79,.60);
 
   border-radius:50%;
 
   background:
-    linear-gradient(
-      145deg,
-      #172844,
-      #0c1526
+    radial-gradient(
+      circle at 35% 25%,
+      #273e65,
+      #0d192d 70%
     );
 
   color:#f4bf4f;
 
-  font-size:
-    clamp(6px,.85vw,10px);
+  font-family:
+    Inter,
+    sans-serif;
 
+  font-size:9px;
   font-weight:950;
 
   letter-spacing:-.04em;
 
   box-shadow:
-    0 0 13px
-      rgba(244,191,79,.13);
+    inset 0 0 9px
+      rgba(244,191,79,.08),
+
+    0 0 12px
+      rgba(244,191,79,.14);
 }
 
 
 /* ==========================================================
-   PALOS
-========================================================== */
-
-.suit-red{
-  color:#d42c42;
-}
-
-
-/* ==========================================================
-   HOVER
+   HOVER PREMIUM
 ========================================================== */
 
 @media (hover:hover) and (pointer:fine){
 
   .cell:not(.not-legal):hover{
-    z-index:5;
+    z-index:8;
 
     transform:
       translateY(-2px)
-      scale(1.025);
+      scale(1.035);
+
+    border-color:
+      rgba(244,191,79,.75);
 
     box-shadow:
-      0 7px 15px
-      rgba(0,0,0,.30);
+      0 8px 18px
+        rgba(0,0,0,.38),
+
+      0 0 0 1px
+        rgba(244,191,79,.25);
   }
 
 }
 
 
 /* ==========================================================
-   RESPONSIVE DEL TABLERO
+   PC GRANDE
+========================================================== */
+
+@media(min-width:1000px){
+
+  .board-wrap{
+    width:min(100%,850px);
+
+    justify-self:center;
+  }
+
+  .board{
+    width:680px;
+  }
+
+}
+
+
+/* ==========================================================
+   LAPTOP
+========================================================== */
+
+@media(
+  min-width:701px
+)
+and
+(
+  max-width:1100px
+){
+
+  .board-wrap{
+    padding:
+      20px 45px;
+  }
+
+  .board{
+    width:min(100%,650px);
+  }
+
+}
+
+
+/* ==========================================================
+   MÓVIL
 ========================================================== */
 
 @media(max-width:700px){
 
+  .board-side-brand{
+    display:none;
+  }
+
   .board-wrap{
+    width:100%;
+
     padding:7px;
+
+    overflow-x:auto;
 
     border-radius:16px;
   }
 
+
+  /*
+    En móvil quitamos los textos laterales
+    porque ocuparían demasiado espacio.
+  */
+
+  .board-wrap::after,
+  .board::after{
+    display:none;
+  }
+
+
+  .board-wrap::before{
+    inset:4px;
+
+    border-radius:12px;
+  }
+
+
   .board{
+    width:100%;
+
     gap:2px;
 
     padding:4px;
 
-    border-radius:12px;
+    border-radius:11px;
   }
+
 
   .cell{
     padding:1px;
@@ -2236,6 +2500,7 @@ button:disabled{
     font-size:
       clamp(6px,2vw,9px);
   }
+
 
   .cell.free::after{
     width:19px;
