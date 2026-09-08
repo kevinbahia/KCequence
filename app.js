@@ -6142,16 +6142,49 @@ function renderHand(room) {
 
           }
 
+          /*
+            El jugador ya tocó una carta.
+            Cancelamos INMEDIATAMENTE cualquier
+            jugada automática pendiente en este navegador.
+          */
+          if (autoPlayTimer) {
+            clearTimeout(autoPlayTimer);
+            autoPlayTimer = null;
+          }
+
+          autoPlayKey = null;
+
+
+          /*
+            Marcamos visualmente la carta primero
+            para que la respuesta sea instantánea.
+          */
+          const previousSelectedCardIndex =
+            selectedCardIndex;
+
+          selectedCardIndex =
+            index;
+
+          renderBoard(room);
+          renderHand(room);
+
+
+          /*
+            Ahora sincronizamos con Firebase
+            que el jugador tomó control manual.
+          */
           const manualControl =
             await claimManualTurn();
 
+          if (!manualControl) {
 
-          if (
-            !manualControl
-          ) {
+            selectedCardIndex =
+              previousSelectedCardIndex;
+
+            renderBoard(room);
+            renderHand(room);
 
             return;
-
           }
 
 
@@ -6183,20 +6216,6 @@ function renderHand(room) {
             return;
 
           }
-
-
-          selectedCardIndex =
-            index;
-
-
-          renderBoard(
-            room
-          );
-
-
-          renderHand(
-            room
-          );
 
 
           status(
@@ -12974,9 +12993,7 @@ function setQuickChatVisible(
    ENVIAR MENSAJE RÁPIDO
 ========================================================= */
 
-async function sendQuickChat(
-  messageId
-) {
+async function sendQuickChat(messageId) {
 
   if (
     !currentRoomCode ||
@@ -13012,16 +13029,8 @@ async function sendQuickChat(
 
 
   if (
-    now -
-    lastQuickChatSentAt <
-    900
+    now - lastQuickChatSentAt < 700
   ) {
-
-    status(
-      'gameStatus',
-      'Espera un momento antes de enviar otro mensaje.'
-    );
-
     return;
   }
 
@@ -13048,24 +13057,27 @@ async function sendQuickChat(
 
 
   /*
-    MOSTRAR INMEDIATAMENTE
-    AL JUGADOR QUE LO MANDÓ
+    MOSTRARLO LOCALMENTE SIN DEPENDER
+    DE FIREBASE.
   */
 
-  renderQuickChatMessage({
-    ...currentRoom,
+  showQuickChatToast(
+    chatData,
+    currentRoom
+  );
 
-    quickChat:
-      chatData
-  });
+
+  /*
+    Guardamos el ID para que cuando
+    Firebase nos devuelva nuestro mismo
+    mensaje no aparezca dos veces.
+  */
+
+  lastQuickChatId =
+    chatData.id;
 
 
   try {
-
-    /*
-      MANDARLO A FIREBASE
-      PARA LOS DEMÁS
-    */
 
     await set(
 
@@ -13082,7 +13094,6 @@ async function sendQuickChat(
       }
 
     );
-
 
   } catch (error) {
 
@@ -13105,111 +13116,38 @@ async function sendQuickChat(
 /* =========================================================
    LEER CHAT RÁPIDO
 ========================================================= */
-
-function renderQuickChatMessage(
+function showQuickChatToast(
+  chat,
   room
 ) {
-
-  if (
-    !room ||
-    !room.quickChat
-  ) {
-
-    return;
-
-  }
-
 
   ensureQuickChatUI();
 
 
-  const chat =
-    room.quickChat;
-
-
-  if (
-    !chat.id ||
-    chat.id ===
-      lastQuickChatId
-  ) {
-
-    return;
-
-  }
-
-
-  /*
-    No mostrar mensajes demasiado viejos
-    al reconectar.
-  */
-  const messageTime =
-    Number(
-      chat.clientAt ||
-      chat.at ||
-      0
-    );
-
-
-  if (
-
-    messageTime
-
-    &&
-
-    Date.now() -
-      messageTime >
-      8000
-
-  ) {
-
-    lastQuickChatId =
-      chat.id;
-
-
-    return;
-
-  }
-
-
   const message =
     QUICK_CHAT_MESSAGES.find(
-
       item =>
         item.id ===
           chat.messageId
-
     );
 
 
   if (!message) {
-
-    lastQuickChatId =
-      chat.id;
-
-
     return;
-
   }
-
-
-  lastQuickChatId =
-    chat.id;
 
 
   const toast =
     $('quickChatToast');
 
-
   const emoji =
     $('quickChatToastEmoji');
-
 
   const name =
     $('quickChatToastName');
 
-
   const text =
-    $('quickChatToastText');
+    $('quickChatToastMessage');
 
 
   if (
@@ -13219,8 +13157,11 @@ function renderQuickChatMessage(
     !text
   ) {
 
-    return;
+    console.error(
+      'No se encontraron los elementos del chat rápido.'
+    );
 
+    return;
   }
 
 
@@ -13230,8 +13171,7 @@ function renderQuickChatMessage(
 
   name.textContent =
 
-    chat.uid ===
-      me?.uid
+    chat.uid === me?.uid
 
       ? 'Tú'
 
@@ -13245,19 +13185,26 @@ function renderQuickChatMessage(
     message.text;
 
 
-  /*
-    Reiniciar temporizador si había
-    otro mensaje mostrándose.
-  */
-  if (
-    quickChatHideTimer
-  ) {
+  if (quickChatHideTimer) {
 
     clearTimeout(
       quickChatHideTimer
     );
 
   }
+
+
+  /*
+    Reinicia animación aunque hubiera
+    otro mensaje visible.
+  */
+
+  toast.classList.remove(
+    'show'
+  );
+
+
+  void toast.offsetWidth;
 
 
   toast.classList.add(
@@ -13274,7 +13221,6 @@ function renderQuickChatMessage(
           'show'
         );
 
-
         quickChatHideTimer =
           null;
 
@@ -13283,6 +13229,65 @@ function renderQuickChatMessage(
       4000
 
     );
+
+}
+
+function renderQuickChatMessage(room) {
+
+  if (
+    !room?.quickChat
+  ) {
+    return;
+  }
+
+
+  const chat =
+    room.quickChat;
+
+
+  if (
+    !chat.id ||
+    chat.id ===
+      lastQuickChatId
+  ) {
+
+    return;
+  }
+
+
+  const messageTime =
+    Number(
+      chat.clientAt ||
+      chat.at ||
+      0
+    );
+
+
+  /*
+    No enseñar mensajes viejos cuando
+    alguien entra o recarga la partida.
+  */
+
+  if (
+    messageTime &&
+    Date.now() - messageTime > 8000
+  ) {
+
+    lastQuickChatId =
+      chat.id;
+
+    return;
+  }
+
+
+  lastQuickChatId =
+    chat.id;
+
+
+  showQuickChatToast(
+    chat,
+    room
+  );
 
 }
 
