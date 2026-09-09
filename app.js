@@ -6337,24 +6337,22 @@ function renderBoard(room) {
 
       if (legal) {
 
-        button.classList.add(
-          'legal',
-          'legal-pulse'
-        );
-
-        /*
-          J♣ / J♠
-          Marcar específicamente las fichas
-          que podemos eliminar.
-        */
-        if (
+        const selectedJackType =
           jackType(
             selectedCard
-          ) === 'remove'
+          );
+
+
+        /*
+          J♣ / J♠ = QUITAR FICHA
+        */
+        if (
+          selectedJackType ===
+            'remove'
         ) {
 
           button.classList.add(
-            'jack-remove-target'
+            'jack-remove-preview'
           );
 
 
@@ -6367,36 +6365,30 @@ function renderBoard(room) {
           if (targetChip) {
 
             targetChip.classList.add(
-              'jack-removable-chip'
+              'jack-remove-transparent'
             );
           }
 
 
-          /*
-            Indicador encima de la ficha.
-          */
-          const removeIndicator =
-            document.createElement(
-              'span'
-            );
+          button.setAttribute(
+            'aria-label',
 
-
-          removeIndicator.className =
-            'jack-remove-indicator';
-
-
-          removeIndicator.innerHTML =
-            '✕';
-
-
-          removeIndicator.setAttribute(
-            'aria-hidden',
-            'true'
+            `${
+              button.getAttribute(
+                'aria-label'
+              )
+            } · Puedes quitar esta ficha`
           );
 
 
-          button.appendChild(
-            removeIndicator
+        } else {
+
+          /*
+            Cartas normales y Jotas libres
+          */
+          button.classList.add(
+            'legal',
+            'legal-pulse'
           );
 
 
@@ -6407,32 +6399,14 @@ function renderBoard(room) {
               button.getAttribute(
                 'aria-label'
               )
-            } · Quitar ficha de ${
-              playerName(
-                room,
-                chipUid
-              )
-            }`
+            } · movimiento válido`
           );
+
         }
 
+      }
 
-                button.setAttribute(
-
-                  'aria-label',
-
-                  `${
-                    button.getAttribute(
-                      'aria-label'
-                    )
-                  } · movimiento válido`
-
-                );
-
-              }
-
-
-              if (
+      if (
                 selectedCard &&
                 !legal &&
                 card !== FREE

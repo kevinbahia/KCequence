@@ -4753,118 +4753,117 @@ and
     pointer-events: none;
 }
 
+
 /* =========================================================
-   KCEQUENCE · JOTA QUITA FICHA
+   KCEQUENCE · JOTA QUITA FICHA — PREVISUALIZACIÓN
 ========================================================= */
 
-.cell.jack-remove-target {
+/*
+   Casilla cuya ficha puede quitarse con J♣ / J♠
+*/
+.cell.jack-remove-preview {
     position: relative;
-    cursor: crosshair;
+    z-index: 7;
 
     outline:
-        3px solid
-        rgba(255, 65, 85, .95) !important;
+        3px solid rgba(255, 65, 85, .95) !important;
 
-    outline-offset:
-        -3px;
+    outline-offset: -3px;
 
     box-shadow:
-        0 0 0 2px rgba(255,255,255,.9),
-        0 0 18px rgba(255, 40, 65, .95),
-        0 0 34px rgba(255, 40, 65, .55) !important;
+        0 0 0 2px rgba(255,255,255,.75),
+        0 0 16px rgba(255, 40, 65, .80),
+        0 0 30px rgba(255, 40, 65, .35) !important;
 
-    z-index: 6;
+    cursor: crosshair;
 }
 
 
-/* Ficha que puede ser eliminada */
-.cell.jack-remove-target
-.jack-removable-chip {
+/*
+   La ficha se vuelve transparente para
+   poder ver la carta que está debajo.
+*/
+.cell.jack-remove-preview
+.chip.jack-remove-transparent {
 
-    animation:
-        kcJackRemovePulse
-        .75s ease-in-out
-        infinite alternate;
+    opacity: .16;
 
     filter:
-        brightness(1.15)
-        saturate(1.25);
+        saturate(.55)
+        brightness(1.15);
 
     box-shadow:
-        0 0 0 3px #fff,
-        0 0 0 6px #ff334f,
-        0 0 22px #ff334f !important;
+        0 0 0 2px rgba(255,255,255,.45),
+        0 0 12px rgba(255, 50, 70, .45);
+
+    transition:
+        opacity .25s ease,
+        filter .25s ease,
+        box-shadow .25s ease;
+
+    animation:
+        kcJackTransparentPulse
+        1.15s ease-in-out
+        infinite;
 }
 
 
-/* X encima de la ficha */
-.jack-remove-indicator {
+/*
+   Mantiene visible la carta que está
+   debajo de la ficha.
+*/
+.cell.jack-remove-preview
+.card-face,
+.cell.jack-remove-preview
+.card-rank,
+.cell.jack-remove-preview
+.card-suit {
 
-    position: absolute;
-
-    top: 50%;
-    left: 50%;
-
-    transform:
-        translate(-50%, -50%);
-
-    width: 28px;
-    height: 28px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 50%;
-
-    background:
-        rgba(145, 0, 20, .92);
-
-    border:
-        2px solid white;
-
-    color:
-        white;
-
-    font-size: 18px;
-    font-weight: 1000;
-
-    line-height: 1;
-
-    box-shadow:
-        0 4px 14px
-        rgba(0,0,0,.55);
-
-    z-index: 20;
-
-    pointer-events: none;
+    position: relative;
+    z-index: 2;
 }
 
 
-@keyframes kcJackRemovePulse {
+/*
+   Pulso suave de la ficha transparente.
+   NO usamos transform para no moverla.
+*/
+@keyframes kcJackTransparentPulse {
 
-    from {
-        transform:
-            scale(1);
+    0%,
+    100% {
+        opacity: .13;
     }
 
-    to {
-        transform:
-            scale(1.12);
+    50% {
+        opacity: .27;
     }
 }
 
+
+/* =========================================================
+   MÓVIL
+========================================================= */
 
 @media (max-width: 700px) {
 
-    .jack-remove-indicator {
+    .cell.jack-remove-preview {
 
-        width: 21px;
-        height: 21px;
+        outline-width:
+            2px;
 
-        font-size: 14px;
+        outline-offset:
+            -2px;
 
-        border-width: 1.5px;
+        box-shadow:
+            0 0 0 1px rgba(255,255,255,.65),
+            0 0 10px rgba(255,40,65,.75),
+            0 0 18px rgba(255,40,65,.30) !important;
     }
 
+    .cell.jack-remove-preview
+    .chip.jack-remove-transparent {
+
+        opacity: .12;
+    }
 }
