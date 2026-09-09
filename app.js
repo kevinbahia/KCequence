@@ -2523,6 +2523,23 @@ onAuthStateChanged(
       );
 
 
+      /*
+        Si llegó mediante una invitación,
+        damos prioridad a esa sala.
+      */
+      if (
+        getInvitedRoomCode()
+      ) {
+
+        const joined =
+          await joinInvitedRoom();
+
+        if (joined) {
+          return;
+        }
+      }
+
+
       await Promise.allSettled(
         [
           loadStats(),
@@ -2628,6 +2645,22 @@ if (nameForm) {
       showView(
         'lobbyView'
       );
+
+      /*
+        El usuario llegó por invitación,
+        pero primero necesitaba crear nickname.
+      */
+      if (
+        getInvitedRoomCode()
+      ) {
+
+        const joined =
+          await joinInvitedRoom();
+
+        if (joined) {
+          return;
+        }
+      }
 
 
       await Promise.allSettled(
@@ -2750,6 +2783,194 @@ if (roomCodeInput) {
 
   );
 
+}
+
+/* =========================================================
+   ENTRAR DESDE ENLACE DE INVITACIÓN
+========================================================= */
+
+async function joinInvitedRoom() {
+
+  const code =
+    getInvitedRoomCode();
+
+
+  if (
+    !code ||
+    !me ||
+    !displayName
+  ) {
+
+    return false;
+  }
+
+
+  try {
+
+    status(
+      'lobbyStatus',
+      `Entrando a la sala ${code}…`
+    );
+
+
+    const roomRef =
+      ref(
+        db,
+        `rooms/${code}`
+      );
+
+
+    const snap =
+      await get(
+        roomRef
+      );
+
+
+    if (!snap.exists()) {
+
+      status(
+        'lobbyStatus',
+        'La sala de la invitación ya no existe.'
+      );
+
+      clearRoomInviteFromUrl();
+
+      return false;
+    }
+
+
+    const room =
+      snap.val();
+
+
+    if (
+      room.matchType !==
+        'private'
+    ) {
+
+      status(
+        'lobbyStatus',
+        'Esta invitación no corresponde a una sala privada.'
+      );
+
+      clearRoomInviteFromUrl();
+
+      return false;
+    }
+
+
+    if (
+      room.status !==
+        'waiting'
+    ) {
+
+      status(
+        'lobbyStatus',
+        'La partida de esta sala ya comenzó.'
+      );
+
+      clearRoomInviteFromUrl();
+
+      return false;
+    }
+
+
+    const players =
+      room.players || {};
+
+
+    /*
+      Si todavía no pertenece a la sala,
+      comprobar espacio.
+    */
+    if (
+      !players[
+        me.uid
+      ]
+    ) {
+
+      if (
+        Object.keys(
+          players
+        ).length >=
+          (
+            room.maxPlayers ||
+            4
+          )
+      ) {
+
+        status(
+          'lobbyStatus',
+          'La sala está llena.'
+        );
+
+        clearRoomInviteFromUrl();
+
+        return false;
+      }
+
+
+      await set(
+
+        ref(
+          db,
+          `rooms/${code}/players/${me.uid}`
+        ),
+
+        {
+          name:
+            displayName,
+
+          joinedAt:
+            Date.now(),
+
+          connected:
+            true,
+
+          lastSeen:
+            serverTimestamp()
+        }
+      );
+    }
+
+
+    rememberActiveRoom(
+      code
+    );
+
+
+    /*
+      Ya entramos.
+      Quitamos ?room= para que una recarga
+      normal no intente volver a procesarlo.
+    */
+    clearRoomInviteFromUrl();
+
+
+    await enterRoom(
+      code
+    );
+
+
+    return true;
+
+
+  } catch (error) {
+
+    console.error(
+      'ERROR INVITACIÓN:',
+      error
+    );
+
+
+    status(
+      'lobbyStatus',
+      'No se pudo entrar a la sala de la invitación.'
+    );
+
+
+    return false;
+  }
 }
 
 
@@ -4513,9 +4734,79 @@ if (copyRoomCodeBtn) {
 
 }
 
+/* =========================================================
+   INVITACIÓN DIRECTA A SALA PRIVADA
+========================================================= */
+
+function getRoomInviteUrl(code) {
+
+  const url =
+    new URL(
+      window.location.href
+    );
+
+  /*
+    Conservamos la ruta de KCequence,
+    pero limpiamos parámetros anteriores.
+  */
+  url.search = '';
+  url.hash = '';
+
+  url.searchParams.set(
+    'room',
+    String(code || '')
+      .trim()
+      .toUpperCase()
+  );
+
+  return url.toString();
+}
+
+
+function getInvitedRoomCode() {
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const code =
+    String(
+      params.get('room') || ''
+    )
+      .trim()
+      .toUpperCase()
+      .replace(
+        /[^A-Z0-9]/g,
+        ''
+      );
+
+  return code.length === 6
+    ? code
+    : null;
+}
+
+
+function clearRoomInviteFromUrl() {
+
+  const url =
+    new URL(
+      window.location.href
+    );
+
+  url.searchParams.delete(
+    'room'
+  );
+
+  window.history.replaceState(
+    {},
+    '',
+    url.toString()
+  );
+}
 
 /* =========================================================
-   COMPARTIR INVITACIÓN
+   COMPARTIR INVITACIÓN DIRECTA
 ========================================================= */
 
 const shareRoomBtn =
@@ -4525,7 +4816,6 @@ const shareRoomBtn =
 if (shareRoomBtn) {
 
   shareRoomBtn.addEventListener(
-
     'click',
 
     async () => {
@@ -4535,14 +4825,14 @@ if (shareRoomBtn) {
       }
 
 
+      const inviteUrl =
+        getRoomInviteUrl(
+          currentRoomCode
+        );
+
+
       const text =
-        `Únete a mi partida de KCequence. Código: ${currentRoomCode}`;
-
-
-      const url =
-        window.location.href
-          .split('?')[0]
-          .split('#')[0];
+        `🎮 Te invito a mi sala privada de KCequence.\nEntra aquí para unirte directamente:`;
 
 
       try {
@@ -4554,29 +4844,27 @@ if (shareRoomBtn) {
           await navigator.share(
             {
               title:
-                'KCequence',
+                'KCequence · Sala privada',
 
               text,
 
-              url
+              url:
+                inviteUrl
             }
           );
-
 
         } else {
 
           await navigator.clipboard.writeText(
-            `${text} ${url}`
+            `${text}\n${inviteUrl}`
           );
 
 
           status(
             'roomStatus',
-            'Invitación copiada.'
+            'Enlace de la sala copiado.'
           );
-
         }
-
 
       } catch (error) {
 
@@ -4589,15 +4877,10 @@ if (shareRoomBtn) {
             'No se pudo compartir:',
             error
           );
-
         }
-
       }
-
     }
-
   );
-
 }
 
 
@@ -6059,67 +6342,141 @@ function renderBoard(room) {
           'legal-pulse'
         );
 
+        /*
+          J♣ / J♠
+          Marcar específicamente las fichas
+          que podemos eliminar.
+        */
+        if (
+          jackType(
+            selectedCard
+          ) === 'remove'
+        ) {
 
-        button.setAttribute(
-
-          'aria-label',
-
-          `${
-            button.getAttribute(
-              'aria-label'
-            )
-          } · movimiento válido`
-
-        );
-
-      }
-
-
-      if (
-        selectedCard &&
-        !legal &&
-        card !== FREE
-      ) {
-
-        button.classList.add(
-          'not-legal'
-        );
-
-      }
+          button.classList.add(
+            'jack-remove-target'
+          );
 
 
-      addUniversalTap(
-        button,
-        () => {
-
-          if (
-            selectedCardIndex === null
-          ) {
-
-            status(
-              'gameStatus',
-              'Primero selecciona una carta.'
+          const targetChip =
+            button.querySelector(
+              '.chip'
             );
 
-            return;
+
+          if (targetChip) {
+
+            targetChip.classList.add(
+              'jack-removable-chip'
+            );
           }
 
-          playAt(
-            index
+
+          /*
+            Indicador encima de la ficha.
+          */
+          const removeIndicator =
+            document.createElement(
+              'span'
+            );
+
+
+          removeIndicator.className =
+            'jack-remove-indicator';
+
+
+          removeIndicator.innerHTML =
+            '✕';
+
+
+          removeIndicator.setAttribute(
+            'aria-hidden',
+            'true'
+          );
+
+
+          button.appendChild(
+            removeIndicator
+          );
+
+
+          button.setAttribute(
+            'aria-label',
+
+            `${
+              button.getAttribute(
+                'aria-label'
+              )
+            } · Quitar ficha de ${
+              playerName(
+                room,
+                chipUid
+              )
+            }`
           );
         }
-      );
 
 
-      boardElement.appendChild(
-        button
-      );
+                button.setAttribute(
 
-    }
+                  'aria-label',
 
-  );
+                  `${
+                    button.getAttribute(
+                      'aria-label'
+                    )
+                  } · movimiento válido`
 
-}
+                );
+
+              }
+
+
+              if (
+                selectedCard &&
+                !legal &&
+                card !== FREE
+              ) {
+
+                button.classList.add(
+                  'not-legal'
+                );
+
+              }
+
+
+              addUniversalTap(
+                button,
+                () => {
+
+                  if (
+                    selectedCardIndex === null
+                  ) {
+
+                    status(
+                      'gameStatus',
+                      'Primero selecciona una carta.'
+                    );
+
+                    return;
+                  }
+
+                  playAt(
+                    index
+                  );
+                }
+              );
+
+
+              boardElement.appendChild(
+                button
+              );
+
+            }
+
+          );
+
+        }
 
 
 /* =========================================================

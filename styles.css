@@ -4752,3 +4752,119 @@ and
 #hand .card * {
     pointer-events: none;
 }
+
+/* =========================================================
+   KCEQUENCE · JOTA QUITA FICHA
+========================================================= */
+
+.cell.jack-remove-target {
+    position: relative;
+    cursor: crosshair;
+
+    outline:
+        3px solid
+        rgba(255, 65, 85, .95) !important;
+
+    outline-offset:
+        -3px;
+
+    box-shadow:
+        0 0 0 2px rgba(255,255,255,.9),
+        0 0 18px rgba(255, 40, 65, .95),
+        0 0 34px rgba(255, 40, 65, .55) !important;
+
+    z-index: 6;
+}
+
+
+/* Ficha que puede ser eliminada */
+.cell.jack-remove-target
+.jack-removable-chip {
+
+    animation:
+        kcJackRemovePulse
+        .75s ease-in-out
+        infinite alternate;
+
+    filter:
+        brightness(1.15)
+        saturate(1.25);
+
+    box-shadow:
+        0 0 0 3px #fff,
+        0 0 0 6px #ff334f,
+        0 0 22px #ff334f !important;
+}
+
+
+/* X encima de la ficha */
+.jack-remove-indicator {
+
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background:
+        rgba(145, 0, 20, .92);
+
+    border:
+        2px solid white;
+
+    color:
+        white;
+
+    font-size: 18px;
+    font-weight: 1000;
+
+    line-height: 1;
+
+    box-shadow:
+        0 4px 14px
+        rgba(0,0,0,.55);
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+
+
+@keyframes kcJackRemovePulse {
+
+    from {
+        transform:
+            scale(1);
+    }
+
+    to {
+        transform:
+            scale(1.12);
+    }
+}
+
+
+@media (max-width: 700px) {
+
+    .jack-remove-indicator {
+
+        width: 21px;
+        height: 21px;
+
+        font-size: 14px;
+
+        border-width: 1.5px;
+    }
+
+}
