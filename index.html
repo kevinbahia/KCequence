@@ -50,7 +50,7 @@
     href="assets/img/kcequence-logo.png"
   >
 
-  <link rel="stylesheet" href="styles.css?v=20260909-03">
+  <link rel="stylesheet" href="styles.css?v=20260929-01">
 
 </head>
 
@@ -182,130 +182,388 @@
 
 
     <!-- =====================================================
-         REGISTRO DE NOMBRE / NICKNAME
-    ====================================================== -->
+     INICIO DE SESIÓN / JUGADOR
+====================================================== -->
 
-    <section
-      id="authView"
-      class="panel auth-panel"
+<section
+  id="authView"
+  class="panel auth-panel"
+>
+
+  <div class="auth-badge">
+    KCEQUENCE ONLINE
+  </div>
+
+
+  <div
+    class="auth-icon"
+    aria-hidden="true"
+  >
+    <img
+      src="assets/img/kcequence-logo.png"
+      alt=""
+      class="auth-logo"
+    >
+  </div>
+
+
+  <h1>
+    Bienvenido a KCequence
+  </h1>
+
+
+  <p class="auth-description">
+    Inicia sesión para conservar tus estadísticas,
+    historial y progreso, o entra rápidamente como invitado.
+  </p>
+
+
+  <!-- =====================================================
+       GOOGLE
+  ====================================================== -->
+
+  <div class="google-auth-section">
+
+    <button
+      id="googleLoginBtn"
+      class="google-login-btn"
+      type="button"
     >
 
-
-      <div class="auth-badge">
-        KCEQUENCE ONLINE
-      </div>
-
-
-      <div 
-        class="auth-icon"
+      <svg
+        class="google-login-icon"
+        viewBox="0 0 24 24"
         aria-hidden="true"
       >
-        <img
-          src="assets/img/kcequence-logo.png"
-          alt=""
-          class="auth-logo"
-        >
-      </div>
+        <path
+          fill="#4285F4"
+          d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.51 5.51 0 0 1-2.39 3.62v3h3.87c2.27-2.09 3.56-5.17 3.56-8.65z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.87-3a7.17 7.17 0 0 1-10.67-3.77H1.4v3.09A12 12 0 0 0 12 24z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M5.4 14.32A7.22 7.22 0 0 1 5.02 12c0-.81.14-1.6.38-2.32V6.59h-4A12 12 0 0 0 0 12c0 1.93.46 3.76 1.4 5.41l4-3.09z"
+        />
+        <path
+          fill="#EA4335"
+          d="M12 4.77c1.76 0 3.34.61 4.59 1.79l3.44-3.44A11.55 11.55 0 0 0 12 0 12 12 0 0 0 1.4 6.59l4 3.09A7.16 7.16 0 0 1 12 4.77z"
+        />
+      </svg>
+
+      <span>
+        Continuar con Google
+      </span>
+
+    </button>
 
 
-      <h1>
-        Bienvenido a KCequence
-      </h1>
+    <p class="google-auth-note">
+      Guarda tus partidas, victorias y estadísticas
+      y recupéralas desde cualquier dispositivo.
+    </p>
+
+  </div>
 
 
-      <p class="auth-description">
-        Elige el nombre o nickname que verán
-        los demás jugadores durante tus partidas.
-      </p>
+  <!-- =====================================================
+       SEPARADOR
+  ====================================================== -->
+
+  <div class="auth-divider">
+
+    <span></span>
+
+    <small>
+      O JUEGA COMO INVITADO
+    </small>
+
+    <span></span>
+
+  </div>
 
 
+  <!-- =====================================================
+       INVITADO
+  ====================================================== -->
 
-      <form
-        id="nameForm"
-        class="stack"
+  <form
+    id="nameForm"
+    class="stack"
+  >
+
+    <label
+      class="field-label"
+      for="nameInput"
+    >
+      Nombre o nickname
+    </label>
+
+
+    <div class="input-shell">
+
+      <span
+        class="input-icon"
+        aria-hidden="true"
+      >
+        ♟
+      </span>
+
+
+      <input
+        id="nameInput"
+        type="text"
+        maxlength="18"
+        minlength="2"
+        placeholder="Escribe tu nombre o nickname"
+        autocomplete="nickname"
+        autocapitalize="words"
+        spellcheck="false"
+        required
       >
 
-
-        <label
-          class="field-label"
-          for="nameInput"
-        >
-          Nombre o nickname
-        </label>
+    </div>
 
 
-        <div class="input-shell">
+    <button
+      id="randomNameBtn"
+      class="ghost random-name-button"
+      type="button"
+    >
 
-          <span
-            class="input-icon"
-            aria-hidden="true"
-          >
-            ♟
-          </span>
+      <span aria-hidden="true">
+        🎲
+      </span>
 
+      <span>
+        Generar nickname aleatorio
+      </span>
 
-          <input
-            id="nameInput"
-            type="text"
-            maxlength="18"
-            minlength="2"
-            placeholder="Escribe tu nombre o nickname"
-            autocomplete="nickname"
-            autocapitalize="words"
-            spellcheck="false"
-            required
-          >
-
-        </div>
+    </button>
 
 
+    <button
+      id="guestLoginBtn"
+      class="primary large-button"
+      type="submit"
+    >
 
-        <button
-          id="randomNameBtn"
-          class="ghost random-name-button"
-          type="button"
-        >
+      <span>
+        Entrar como invitado
+      </span>
 
-          <span aria-hidden="true">
-            🎲
-          </span>
+      <span
+        class="button-arrow"
+        aria-hidden="true"
+      >
+        →
+      </span>
 
-          <span>
-            Generar nickname aleatorio
-          </span>
+    </button>
 
-        </button>
-
+  </form>
 
 
-        <button
-          class="primary large-button"
-          type="submit"
-        >
+  <!-- =====================================================
+       INFORMACIÓN
+  ====================================================== -->
 
-          <span>
-            Entrar al lobby
-          </span>
+  <div class="auth-account-info">
 
-          <span
-            class="button-arrow"
-            aria-hidden="true"
-          >
-            →
-          </span>
+    <span aria-hidden="true">
+      ☁
+    </span>
 
-        </button>
+    <p>
+      <strong>¿Quieres conservar tu progreso?</strong>
+      Usa Google para guardar tus partidas,
+      victorias y estadísticas en tu cuenta.
+    </p>
 
-      </form>
+  </div>
+
+
+  <p class="auth-note">
+    También puedes jugar sin crear una cuenta.
+  </p>
+
+</section>
 
 
 
-      <p class="auth-note">
-        No necesitas crear una cuenta para jugar.
-      </p>
+<!-- =====================================================
+     CREAR NICKNAME PARA CUENTA GOOGLE
+====================================================== -->
+
+<section
+  id="nicknameView"
+  class="panel auth-panel hidden"
+>
+
+  <div class="auth-badge">
+    CREA TU JUGADOR
+  </div>
 
 
-    </section>
+  <div
+    class="auth-icon"
+    aria-hidden="true"
+  >
+    <img
+      src="assets/img/kcequence-logo.png"
+      alt=""
+      class="auth-logo"
+    >
+  </div>
+
+
+  <h1>
+    Elige tu nickname
+  </h1>
+
+
+  <p class="auth-description">
+    Tu cuenta de Google ya está conectada.
+    Ahora elige el nombre que usarás dentro de KCequence.
+  </p>
+
+
+  <!-- =====================================================
+       CUENTA GOOGLE CONECTADA
+  ====================================================== -->
+
+  <div class="auth-account-info google-account-connected">
+
+    <span aria-hidden="true">
+      ✓
+    </span>
+
+    <p>
+      <strong>Cuenta de Google conectada</strong>
+      Este nickname quedará guardado en tu cuenta
+      junto con tus estadísticas e historial.
+    </p>
+
+  </div>
+
+
+  <!-- =====================================================
+       FORMULARIO NICKNAME GOOGLE
+  ====================================================== -->
+
+  <form
+    id="googleNicknameForm"
+    class="stack"
+  >
+
+    <label
+      class="field-label"
+      for="googleNicknameInput"
+    >
+      Tu nickname
+    </label>
+
+
+    <div class="input-shell">
+
+      <span
+        class="input-icon"
+        aria-hidden="true"
+      >
+        ♟
+      </span>
+
+
+      <input
+        id="googleNicknameInput"
+        type="text"
+        maxlength="18"
+        minlength="2"
+        placeholder="Ej. KevinPro"
+        autocomplete="nickname"
+        autocapitalize="words"
+        spellcheck="false"
+        required
+      >
+
+    </div>
+
+
+    <p class="input-helper">
+      Este será el nombre que verán los demás jugadores.
+    </p>
+
+
+    <button
+      id="googleRandomNameBtn"
+      class="ghost random-name-button"
+      type="button"
+    >
+
+      <span aria-hidden="true">
+        🎲
+      </span>
+
+      <span>
+        Generar nickname aleatorio
+      </span>
+
+    </button>
+
+
+    <button
+      id="saveGoogleNicknameBtn"
+      class="primary large-button"
+      type="submit"
+    >
+
+      <span>
+        Guardar nickname
+      </span>
+
+      <span
+        class="button-arrow"
+        aria-hidden="true"
+      >
+        →
+      </span>
+
+    </button>
+
+  </form>
+
+
+  <!-- =====================================================
+       AVISO
+  ====================================================== -->
+
+  <div class="auth-account-info">
+
+    <span aria-hidden="true">
+      ☁
+    </span>
+
+    <p>
+      <strong>Tu progreso quedará sincronizado.</strong>
+      Cuando vuelvas a iniciar sesión con esta cuenta,
+      recuperaremos automáticamente tu nickname,
+      partidas y estadísticas.
+    </p>
+
+  </div>
+
+
+  <button
+    id="cancelGoogleNicknameBtn"
+    class="ghost large-button"
+    type="button"
+  >
+    Usar otra cuenta
+  </button>
+
+</section>
 
 
 
@@ -1442,7 +1700,7 @@
 
 <script
   type="module"
-  src="app.js?v=20260909-03"
+  src="app.js?v=20260929-02"
 ></script>
 
 

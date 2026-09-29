@@ -3,7 +3,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebas
 import {
   getAuth,
   signInAnonymously,
-  onAuthStateChanged
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  linkWithPopup,
+  signInWithPopup,
+  signOut
 } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
 
 import {
@@ -30,6 +34,7 @@ const $ = id => document.getElementById(id);
 
 const views = [
   'authView',
+  'nicknameView',
   'lobbyView',
   'roomView',
   'gameView'
@@ -38,6 +43,17 @@ const views = [
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+
+/* =========================================================
+   GOOGLE AUTH
+========================================================= */
+
+const googleProvider =
+  new GoogleAuthProvider();
+
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 
 /* =========================================================
@@ -2353,34 +2369,24 @@ async function ensureProfile() {
     !me ||
     !displayName
   ) {
-
     return;
-
   }
 
-
   /*
-    UPDATE y no SET para conservar
-    estadísticas anteriores.
+    Usamos UPDATE para conservar:
+    - resultados
+    - estadísticas
+    - información de Google
   */
   await update(
-
     ref(
       db,
       `users/${me.uid}`
     ),
-
     {
-
-      name:
-        displayName,
-
-
-      lastSeen:
-        serverTimestamp()
-
+      name: displayName,
+      lastSeen: serverTimestamp()
     }
-
   );
 
 }
@@ -2390,30 +2396,355 @@ async function ensureProfile() {
    INICIAR FIREBASE
 ========================================================= */
 
-/*
-  NO llamamos signInAnonymously inmediatamente.
-
-  Primero esperamos a que Firebase nos diga
-  si ya existe una sesión anónima guardada.
-
-  Esto es importante porque si creamos otro UID
-  al recargar, la partida anterior pertenece
-  al UID viejo.
-*/
-
-let authInitialized =
-  false;
+let authInitialized = false;
 
 
 async function bootstrap() {
 
   startConnectionListener();
 
+  /*
+    onAuthStateChanged decidirá si ya existe
+    una sesión o si necesitamos crear
+    un usuario anónimo.
+  */
+
+}
+
+
+/* =========================================================
+   MOSTRAR PANTALLA DE NICKNAME GOOGLE
+========================================================= */
+
+function showGoogleNicknameView() {
+
+  displayName = '';
 
   /*
-    onAuthStateChanged se encargará de decidir
-    si ya existe usuario o necesitamos crear uno.
+    IMPORTANTE:
+    Un nickname anterior de invitado no debe
+    convertirse en el nickname de Google.
   */
+  localStorage.removeItem(
+    'kc_name'
+  );
+
+
+  updatePlayerPill(
+    'Elige tu nickname'
+  );
+
+
+  const input =
+    $('googleNicknameInput');
+
+
+  if (input) {
+
+    input.value = '';
+
+    input.setCustomValidity('');
+
+  }
+
+
+  showView(
+    'nicknameView'
+  );
+
+
+  setTimeout(
+    () => {
+      input?.focus();
+    },
+    100
+  );
+
+}
+
+
+/* =========================================================
+   ENTRAR AL LOBBY CON PERFIL CARGADO
+========================================================= */
+
+async function enterLobbyWithProfile(
+  nickname,
+  welcome = false
+) {
+
+  const cleanName =
+    normalizeName(
+      nickname
+    );
+
+
+  if (!cleanName) {
+    return;
+  }
+
+
+  displayName =
+    cleanName;
+
+
+  localStorage.setItem(
+    'kc_name',
+    displayName
+  );
+
+
+  updatePlayerPill(
+    displayName
+  );
+
+
+  showView(
+    'lobbyView'
+  );
+
+
+  /*
+    Si el jugador abrió un enlace
+    de invitación.
+  */
+  if (
+    getInvitedRoomCode()
+  ) {
+
+    const joined =
+      await joinInvitedRoom();
+
+
+    if (joined) {
+      return;
+    }
+
+  }
+
+
+  await Promise.allSettled([
+    loadStats(),
+    checkReconnectOption()
+  ]);
+
+
+  if (welcome) {
+
+    status(
+      'lobbyStatus',
+      `Bienvenido, ${displayName}.`
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   INICIAR SESIÓN CON GOOGLE
+========================================================= */
+
+async function loginWithGoogle() {
+
+  const button =
+    $('googleLoginBtn');
+
+
+  if (button) {
+    button.disabled = true;
+  }
+
+
+  try {
+
+    let userCredential;
+
+
+    /* =====================================================
+       INVITADO -> INTENTAR VINCULAR CON GOOGLE
+    ===================================================== */
+
+    if (
+      auth.currentUser &&
+      auth.currentUser.isAnonymous
+    ) {
+
+      try {
+
+        userCredential =
+          await linkWithPopup(
+            auth.currentUser,
+            googleProvider
+          );
+
+
+      } catch (error) {
+
+        /*
+          Si esa cuenta de Google ya existe,
+          iniciamos sesión en esa cuenta.
+        */
+        if (
+          error.code ===
+          'auth/credential-already-in-use'
+        ) {
+
+          userCredential =
+            await signInWithPopup(
+              auth,
+              googleProvider
+            );
+
+        } else {
+
+          throw error;
+
+        }
+
+      }
+
+
+    } else {
+
+      userCredential =
+        await signInWithPopup(
+          auth,
+          googleProvider
+        );
+
+    }
+
+
+    const user =
+      userCredential.user;
+
+
+    /*
+      Lo asignamos también aquí para evitar
+      cualquier carrera con onAuthStateChanged.
+    */
+    me = user;
+
+
+    /* =====================================================
+       BUSCAR PERFIL
+    ===================================================== */
+
+    const profileSnap =
+      await get(
+        ref(
+          db,
+          `users/${user.uid}`
+        )
+      );
+
+
+    const profile =
+      profileSnap.exists()
+        ? profileSnap.val()
+        : null;
+
+
+    const savedNickname =
+      normalizeName(
+        profile?.name || ''
+      );
+
+
+    /* =====================================================
+       GUARDAR DATOS DE CUENTA
+
+       NO usamos el nombre de Google como nickname.
+    ===================================================== */
+
+    await update(
+      ref(
+        db,
+        `users/${user.uid}`
+      ),
+      {
+        accountType: 'google',
+
+        photoURL:
+          user.photoURL || null,
+
+        lastSeen:
+          serverTimestamp()
+      }
+    );
+
+
+    /* =====================================================
+       YA TIENE NICKNAME
+    ===================================================== */
+
+    if (savedNickname) {
+
+      await enterLobbyWithProfile(
+        savedNickname,
+        true
+      );
+
+      return;
+
+    }
+
+
+    /* =====================================================
+       PRIMERA VEZ CON GOOGLE
+    ===================================================== */
+
+    showGoogleNicknameView();
+
+
+  } catch (error) {
+
+    console.error(
+      'ERROR GOOGLE AUTH:',
+      error
+    );
+
+
+    if (
+      error.code !==
+        'auth/popup-closed-by-user' &&
+
+      error.code !==
+        'auth/cancelled-popup-request'
+    ) {
+
+      alert(
+        'No se pudo iniciar sesión con Google.'
+      );
+
+    }
+
+
+  } finally {
+
+    if (button) {
+      button.disabled = false;
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   BOTÓN GOOGLE
+========================================================= */
+
+const googleLoginBtn =
+  $('googleLoginBtn');
+
+
+if (googleLoginBtn) {
+
+  googleLoginBtn.addEventListener(
+    'click',
+    loginWithGoogle
+  );
 
 }
 
@@ -2429,17 +2760,18 @@ onAuthStateChanged(
   async user => {
 
     /*
-      Primera comprobación:
-      si Firebase no restauró ningún usuario,
-      ahora sí creamos el anónimo.
+      Si Firebase no encontró una sesión anterior,
+      creamos el usuario anónimo.
+
+      No hacemos esto antes porque Firebase necesita
+      tiempo para restaurar una sesión guardada.
     */
     if (
       !user &&
       !authInitialized
     ) {
 
-      authInitialized =
-        true;
+      authInitialized = true;
 
 
       try {
@@ -2475,12 +2807,9 @@ onAuthStateChanged(
     }
 
 
-    authInitialized =
-      true;
+    authInitialized = true;
 
-
-    me =
-      user;
+    me = user;
 
 
     if (!user) {
@@ -2488,18 +2817,188 @@ onAuthStateChanged(
     }
 
 
-    updatePlayerPill(
-
-      displayName
-
-        ? displayName
-
-        : 'Invitado conectado'
-
-    );
-
-
     startMatchListener();
+
+
+    /* =====================================================
+       CUENTA GOOGLE
+    ===================================================== */
+
+    if (!user.isAnonymous) {
+
+      try {
+
+        /*
+          Para Google ignoramos kc_name.
+
+          El nickname oficial debe venir de:
+
+          users/UID/name
+        */
+        const profileSnap =
+          await get(
+            ref(
+              db,
+              `users/${user.uid}`
+            )
+          );
+
+
+        const profile =
+          profileSnap.exists()
+            ? profileSnap.val()
+            : null;
+
+
+        const savedNickname =
+          normalizeName(
+            profile?.name || ''
+          );
+
+
+        /*
+          Marcamos la cuenta como Google.
+          Esto NO toca results.
+        */
+        await update(
+          ref(
+            db,
+            `users/${user.uid}`
+          ),
+          {
+            accountType: 'google',
+
+            photoURL:
+              user.photoURL || null,
+
+            lastSeen:
+              serverTimestamp()
+          }
+        );
+
+
+        /* =================================================
+           GOOGLE CON NICKNAME
+        ================================================= */
+
+        if (savedNickname) {
+
+          displayName =
+            savedNickname;
+
+
+          localStorage.setItem(
+            'kc_name',
+            displayName
+          );
+
+
+          updatePlayerPill(
+            displayName
+          );
+
+
+          try {
+
+            await ensureProfile();
+
+          } catch (error) {
+
+            console.warn(
+              'No se pudo actualizar el perfil:',
+              error
+            );
+
+          }
+
+
+          showView(
+            'lobbyView'
+          );
+
+
+          /*
+            Invitación pendiente.
+          */
+          if (
+            getInvitedRoomCode()
+          ) {
+
+            const joined =
+              await joinInvitedRoom();
+
+
+            if (joined) {
+              return;
+            }
+
+          }
+
+
+          await Promise.allSettled([
+            loadStats(),
+            checkReconnectOption()
+          ]);
+
+
+          return;
+
+        }
+
+
+        /* =================================================
+           GOOGLE SIN NICKNAME
+        ================================================= */
+
+        showGoogleNicknameView();
+
+        return;
+
+
+      } catch (error) {
+
+        console.error(
+          'ERROR CARGANDO PERFIL GOOGLE:',
+          error
+        );
+
+
+        updatePlayerPill(
+          'Error de perfil'
+        );
+
+
+        /*
+          Si hubo un error real leyendo Firebase,
+          no mostramos el formulario de invitado.
+        */
+        showView(
+          'nicknameView'
+        );
+
+
+        status(
+          'googleNicknameStatus',
+          'No se pudo cargar tu perfil. Recarga la página.'
+        );
+
+
+        return;
+
+      }
+
+    }
+
+
+    /* =====================================================
+       USUARIO INVITADO
+    ===================================================== */
+
+    updatePlayerPill(
+      displayName
+        ? displayName
+        : 'Invitado conectado'
+    );
 
 
     if (displayName) {
@@ -2524,8 +3023,7 @@ onAuthStateChanged(
 
 
       /*
-        Si llegó mediante una invitación,
-        damos prioridad a esa sala.
+        Invitación pendiente.
       */
       if (
         getInvitedRoomCode()
@@ -2534,22 +3032,26 @@ onAuthStateChanged(
         const joined =
           await joinInvitedRoom();
 
+
         if (joined) {
           return;
         }
+
       }
 
 
-      await Promise.allSettled(
-        [
-          loadStats(),
-          checkReconnectOption()
-        ]
-      );
+      await Promise.allSettled([
+        loadStats(),
+        checkReconnectOption()
+      ]);
 
 
     } else {
 
+      /*
+        SOLO los invitados sin nombre
+        llegan al formulario de invitado.
+      */
       showView(
         'authView'
       );
@@ -2562,7 +3064,7 @@ onAuthStateChanged(
 
 
 /* =========================================================
-   FORMULARIO NOMBRE
+   FORMULARIO NOMBRE - INVITADO
 ========================================================= */
 
 const nameForm =
@@ -2601,8 +3103,7 @@ if (nameForm) {
 
 
       if (
-        name.length <
-          2
+        name.length < 2
       ) {
 
         input.setCustomValidity(
@@ -2612,9 +3113,23 @@ if (nameForm) {
 
         input.reportValidity();
 
-
         input.focus();
 
+        return;
+
+      }
+
+
+      /*
+        Este formulario es EXCLUSIVO
+        para invitados.
+      */
+      if (
+        me &&
+        !me.isAnonymous
+      ) {
+
+        showGoogleNicknameView();
 
         return;
 
@@ -2646,31 +3161,10 @@ if (nameForm) {
         'lobbyView'
       );
 
+
       /*
-        El usuario llegó por invitación,
-        pero primero necesitaba crear nickname.
+        Guardamos el perfil anónimo.
       */
-      if (
-        getInvitedRoomCode()
-      ) {
-
-        const joined =
-          await joinInvitedRoom();
-
-        if (joined) {
-          return;
-        }
-      }
-
-
-      await Promise.allSettled(
-        [
-          loadStats(),
-          checkReconnectOption()
-        ]
-      );
-
-
       try {
 
         await ensureProfile();
@@ -2682,13 +3176,31 @@ if (nameForm) {
           error
         );
 
+      }
 
-        status(
-          'lobbyStatus',
-          'Entraste al lobby, pero hubo un problema sincronizando tu perfil.'
-        );
+
+      /*
+        Si llegó mediante invitación.
+      */
+      if (
+        getInvitedRoomCode()
+      ) {
+
+        const joined =
+          await joinInvitedRoom();
+
+
+        if (joined) {
+          return;
+        }
 
       }
+
+
+      await Promise.allSettled([
+        loadStats(),
+        checkReconnectOption()
+      ]);
 
     }
 
@@ -2698,7 +3210,7 @@ if (nameForm) {
 
 
 /* =========================================================
-   LIMPIAR VALIDACIÓN NOMBRE
+   LIMPIAR VALIDACIÓN - INVITADO
 ========================================================= */
 
 const nameInput =
@@ -2716,6 +3228,378 @@ if (nameInput) {
       nameInput.setCustomValidity(
         ''
       );
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   NICKNAME ALEATORIO - GOOGLE
+========================================================= */
+
+const googleRandomNameBtn =
+  $('googleRandomNameBtn');
+
+
+if (googleRandomNameBtn) {
+
+  googleRandomNameBtn.addEventListener(
+
+    'click',
+
+    () => {
+
+      const input =
+        $('googleNicknameInput');
+
+
+      if (!input) {
+        return;
+      }
+
+
+      input.value =
+        randomNickname();
+
+
+      input.setCustomValidity(
+        ''
+      );
+
+
+      input.focus();
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   LIMPIAR VALIDACIÓN - GOOGLE
+========================================================= */
+
+const googleNicknameInput =
+  $('googleNicknameInput');
+
+
+if (googleNicknameInput) {
+
+  googleNicknameInput.addEventListener(
+
+    'input',
+
+    () => {
+
+      googleNicknameInput.setCustomValidity(
+        ''
+      );
+
+
+      status(
+        'googleNicknameStatus',
+        ''
+      );
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   GUARDAR NICKNAME - GOOGLE
+========================================================= */
+
+const googleNicknameForm =
+  $('googleNicknameForm');
+
+
+if (googleNicknameForm) {
+
+  googleNicknameForm.addEventListener(
+
+    'submit',
+
+    async event => {
+
+      event.preventDefault();
+
+
+      const input =
+        $('googleNicknameInput');
+
+
+      const submitButton =
+        $('saveGoogleNicknameBtn');
+
+
+      if (!input) {
+        return;
+      }
+
+
+      /*
+        Este formulario solamente puede usarse
+        con una cuenta real de Google.
+      */
+      if (
+        !me ||
+        me.isAnonymous
+      ) {
+
+        status(
+          'googleNicknameStatus',
+          'Tu sesión de Google ya no está disponible.'
+        );
+
+        showView(
+          'authView'
+        );
+
+        return;
+
+      }
+
+
+      const name =
+        normalizeName(
+          input.value
+        );
+
+
+      input.setCustomValidity(
+        ''
+      );
+
+
+      if (
+        name.length < 2
+      ) {
+
+        input.setCustomValidity(
+          'Escribe al menos 2 caracteres.'
+        );
+
+
+        input.reportValidity();
+
+        input.focus();
+
+        return;
+
+      }
+
+
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+
+
+      status(
+        'googleNicknameStatus',
+        'Guardando tu jugador…'
+      );
+
+
+      try {
+
+        /*
+          Guardamos directamente bajo el UID
+          de la cuenta Google.
+        */
+        await update(
+          ref(
+            db,
+            `users/${me.uid}`
+          ),
+          {
+            name: name,
+
+            accountType:
+              'google',
+
+            photoURL:
+              me.photoURL || null,
+
+            lastSeen:
+              serverTimestamp()
+          }
+        );
+
+
+        displayName =
+          name;
+
+
+        localStorage.setItem(
+          'kc_name',
+          name
+        );
+
+
+        updatePlayerPill(
+          name
+        );
+
+
+        status(
+          'googleNicknameStatus',
+          ''
+        );
+
+
+        showView(
+          'lobbyView'
+        );
+
+
+        /*
+          Si abrió una invitación antes
+          de iniciar sesión.
+        */
+        if (
+          getInvitedRoomCode()
+        ) {
+
+          const joined =
+            await joinInvitedRoom();
+
+
+          if (joined) {
+            return;
+          }
+
+        }
+
+
+        await Promise.allSettled([
+          loadStats(),
+          checkReconnectOption()
+        ]);
+
+
+        status(
+          'lobbyStatus',
+          `¡Listo, ${name}! Tu jugador quedó guardado.`
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          'ERROR GUARDANDO NICKNAME GOOGLE:',
+          error
+        );
+
+
+        status(
+          'googleNicknameStatus',
+          'No se pudo guardar el nickname. Intenta nuevamente.'
+        );
+
+
+      } finally {
+
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+
+      }
+
+    }
+
+  );
+
+}
+
+
+/* =========================================================
+   CANCELAR NICKNAME GOOGLE / USAR OTRA CUENTA
+========================================================= */
+
+const cancelGoogleNicknameBtn =
+  $('cancelGoogleNicknameBtn');
+
+
+if (cancelGoogleNicknameBtn) {
+
+  cancelGoogleNicknameBtn.addEventListener(
+
+    'click',
+
+    async () => {
+
+      cancelGoogleNicknameBtn.disabled =
+        true;
+
+
+      try {
+
+        /*
+          Cerramos la cuenta Google.
+        */
+        await signOut(
+          auth
+        );
+
+
+        /*
+          Eliminamos el nickname local para que
+          no se reutilice accidentalmente.
+        */
+        displayName = '';
+
+        localStorage.removeItem(
+          'kc_name'
+        );
+
+
+        updatePlayerPill(
+          'Invitado conectado'
+        );
+
+
+        /*
+          Creamos una sesión anónima nueva para
+          conservar el funcionamiento del juego
+          como invitado.
+        */
+        await signInAnonymously(
+          auth
+        );
+
+
+        showView(
+          'authView'
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          'ERROR CAMBIANDO CUENTA:',
+          error
+        );
+
+
+        status(
+          'googleNicknameStatus',
+          'No se pudo cambiar de cuenta.'
+        );
+
+
+      } finally {
+
+        cancelGoogleNicknameBtn.disabled =
+          false;
+
+      }
 
     }
 
